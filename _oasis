@@ -1,0 +1,63 @@
+OASISFormat: 0.3
+Name: ucutf
+Version: 0.9.0
+Synopsis: Non-blocking streaming Unicode codec for OCaml
+Authors: Daniel Bünzli <daniel.buenzli at erratique.ch>
+Copyrights: (c) 2012 Daniel C. Bünzli
+License: BSD3
+Homepage: http://erratique.ch/software/ucutf
+Description:
+ UCutf is an OCaml module to encode and decode the UTF-{8,16,16LE,16BE} 
+ encoding schemes. New line normalization and character position tracking 
+ can be automatically performed on decoding.
+ .
+ Functions are also provided to fold over the characters of UTF encoded
+ OCaml string values and to directly encode characters in OCaml Buffer.t
+ values.
+ .
+ UCutf is made of a single, independent, module and distributed under
+ the BSD3 license.
+
+OCamlVersion: >= 3.12.0
+Plugins: META (0.3)
+BuildTools:ocamlbuild
+
+Library ucutf
+ Path: src
+ Modules: UCutf
+
+Executable utftrip
+ Path: test
+ MainIs: utftrip.ml
+ BuildDepends: ucutf
+ CompiledObject: best
+
+Executable test
+ Path: test
+ MainIs: test.ml
+ CompiledObject: Best
+ BuildDepends: ucutf
+ Install: false
+
+Test test
+ Command: $test
+
+Document api
+ Title: UCutf's documentation and API reference
+ Type: ocamlbuild (0.3)
+ BuildTools+: ocamldoc
+ XOCamlbuildLibraries: ucutf
+ XOCamlbuildPath: doc
+
+Document distribution
+ Title: "UCutf's README and CHANGES files"
+ DataFiles: README CHANGES
+
+Document samples
+ Title: "UCutf's sample code"
+ DataFiles: test/*.ml
+
+SourceRepository head
+ Type: git
+ Location: git://erratique.ch/repos/ucutf.git
+ Browser: http://erratique.ch/repos/ucutf
