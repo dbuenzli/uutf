@@ -302,28 +302,23 @@ val encoder_encoding : encoder -> encoding
 val encoder_dst : encoder -> dst
 (** [encoder_dst e] is [e]'s output destination. *)
 
-(** {1:manual Manual sources and destinations.} 
-    
-    The functions in this module are only for decoders and encoders
-    that have a [`Manual] source or destination. *)
+(** {1:manual Manual sources and destinations.} *)
 
-(** Manual sources and destinations. *)
+(** Manual sources and destinations. 
+
+    {b Warning.} Use only with [`Manual] decoder and encoders. *)
 module Manual : sig
   val src : decoder -> string -> int -> int -> unit
   (** [src d s j l] provides [d] with [l] bytes to read, starting at 
       [j] in [s]. This byte range is read by calls to {!decode} with [d] 
       until [`Await] is returned. To signal the end of input call the function
-      with [l = 0]. 
-      
-      {b Warning.} Do not use with non-[`Manual] decoder sources. *)
+      with [l = 0]. *)
 
   val dst : encoder -> string -> int -> int -> unit
   (** [dst e s j l] provides [e] with [l] bytes to write, starting
       at [j] in [s]. This byte range is written by calls to {!encode} with [e]
       until [`Partial] is returned. Use {!dst_rem} to know the remaining
-      number of non-written free bytes in [s]. 
-
-      {b Warning.} Do not use with non-[`Manual] encoder destinations. *)
+      number of non-written free bytes in [s]. *)
 
   val dst_rem : encoder -> int 
   (** [dst_rem e] is the remaining number of non-written, free bytes
