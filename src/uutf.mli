@@ -122,7 +122,8 @@ type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decoder
 (** The type for decoders. *)
 
-val decoder : ?nln:nln -> ?encoding:[< decoder_encoding] -> [< src] -> decoder
+val decoder : ?nln:[< nln] -> ?encoding:[< decoder_encoding] -> [< src] -> 
+  decoder
 (** [decoder nln encoding src] is a decoder that inputs from [src].
 
     {b Byte order mark.}
@@ -274,7 +275,7 @@ val encoder : [< encoding] -> [< dst] -> encoder
     {{:http://unicode.org/glossary/#byte_order_mark}BOM}
     is encoded. If needed, this duty is left to the client. *)
 
-val encode : encoder -> [`Await | `End | `Uchar of uchar ] -> [`Ok | `Partial ]
+val encode : encoder -> [<`Await | `End | `Uchar of uchar ] -> [`Ok | `Partial ]
 (** [encode e v] is :
     {ul
     {- [`Partial] iff [e] has a [`Manual] destination and needs more output

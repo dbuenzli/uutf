@@ -469,9 +469,9 @@ let decoder ?nln ?encoding src =
   | `Channel _ -> String.create io_buffer_size, 1, 0                 (* idem. *)
   | `String s -> s, 0, String.length s - 1
   in
-  { src = (src :> src); encoding; nln; nl; i; i_pos; i_max; 
-    t = String.create 4; t_len = 0; t_need = 0; removed_bom = false; 
-    last_cr = false; line = 1; col = 0; count = 0;
+  { src = (src :> src); encoding; nln = (nln :> nln option); nl; 
+    i; i_pos; i_max; t = String.create 4; t_len = 0; t_need = 0; 
+    removed_bom = false; last_cr = false; line = 1; col = 0; count = 0;
     pp = pp_remove_bom (encoding = `UTF_16) pp; k }
 
 let decode d = d.k d
@@ -488,6 +488,7 @@ let set_decoder_encoding d e =
 (* Encode *)
 
 type dst = [ `Channel of out_channel | `Buffer of Buffer.t | `Manual ]
+type encode = [ `Await | `End | `Uchar of uchar ]
 type encoder = 
   { dst : dst;                                         (* output destination. *)
     encoding : encoding;                                 (* encoded encoding. *)
@@ -498,7 +499,7 @@ type encoder =
     mutable t_pos : int;                     (* next position to read in [t]. *)
     mutable t_max : int;                  (* maximal position to read in [t]. *)
     mutable k :                                      (* encoder continuation. *)
-      encoder -> [ `Await | `End | `Uchar of uchar ] -> [ `Ok | `Partial ] }
+      encoder -> encode -> [ `Ok | `Partial ] }
 
 (* On encodes that overlap two (or more) [e.o] buffers, we encode the
    character to the temporary buffer [o.t] and continue with
@@ -652,7 +653,7 @@ let encoder encoding dst =
   { dst = (dst :> dst); encoding = (encoding :> encoding); o; o_pos; o_max; 
     t = String.create 4; t_pos = 1; t_max = 0; k = encode_fun encoding}
     
-let encode e v = e.k e v
+let encode e v = e.k e (v :> encode)
 let encoder_encoding e = e.encoding
 let encoder_dst e = e.dst
 
