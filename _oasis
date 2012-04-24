@@ -1,63 +1,71 @@
 OASISFormat: 0.3
-Name: ucutf
+Name: uutf
 Version: 0.9.0
 Synopsis: Non-blocking streaming Unicode codec for OCaml
 Authors: Daniel Bünzli <daniel.buenzli at erratique.ch>
 Copyrights: (c) 2012 Daniel C. Bünzli
 License: BSD3
-Homepage: http://erratique.ch/software/ucutf
+Homepage: http://erratique.ch/software/uutf
 Description:
- UCutf is an OCaml module to encode and decode the UTF-{8,16,16LE,16BE} 
- encoding schemes. New line normalization and character position tracking 
- can be automatically performed on decoding.
+ Uutf is a non-blocking streaming codec to decode and encode the UTF-8,
+ UTF-16, UTF-16LE and UTF-16BE encoding schemes. It can efficiently
+ work character by character without blocking on IO. Decoders perform 
+ character position tracking and support newline normalization. 
  .
  Functions are also provided to fold over the characters of UTF encoded
  OCaml string values and to directly encode characters in OCaml Buffer.t
  values.
  .
- UCutf is made of a single, independent, module and distributed under
+ Uutf is made of a single, independent, module and distributed under
  the BSD3 license.
 
 OCamlVersion: >= 3.12.0
 Plugins: META (0.3)
 BuildTools:ocamlbuild
 
-Library ucutf
+Library uutf
  Path: src
- Modules: UCutf
+ Modules: Uutf
 
 Executable utftrip
  Path: test
  MainIs: utftrip.ml
- BuildDepends: ucutf
+ BuildDepends: uutf, unix
  CompiledObject: best
 
 Executable test
  Path: test
  MainIs: test.ml
- CompiledObject: Best
- BuildDepends: ucutf
+ BuildDepends: uutf
+ CompiledObject: best    
+ Install: false
+
+Executable examples
+ Path: test
+ MainIs: examples.ml
+ BuildDepends: uutf, unix
+ CompiledObject: best 
  Install: false
 
 Test test
  Command: $test
 
 Document api
- Title: UCutf's documentation and API reference
+ Title: Uutf's documentation and API reference
  Type: ocamlbuild (0.3)
  BuildTools+: ocamldoc
- XOCamlbuildLibraries: ucutf
+ XOCamlbuildLibraries: uutf
  XOCamlbuildPath: doc
 
 Document distribution
- Title: "UCutf's README and CHANGES files"
+ Title: "Uutf's README and CHANGES files"
  DataFiles: README CHANGES
 
 Document samples
- Title: "UCutf's sample code"
+ Title: "Uutf's sample code"
  DataFiles: test/*.ml
 
 SourceRepository head
  Type: git
- Location: git://erratique.ch/repos/ucutf.git
- Browser: http://erratique.ch/repos/ucutf
+ Location: git://erratique.ch/repos/uutf.git
+ Browser: http://erratique.ch/repos/uutf

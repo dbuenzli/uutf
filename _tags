@@ -1,3 +1,5 @@
 <**/*.{ml,mli}> : annot, debug
 <src> : include
 <test> : include
+<test/utftrip.{byte,native}> : use_unix
+<test/examples.{byte,native}> : use_unix
