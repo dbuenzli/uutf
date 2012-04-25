@@ -76,13 +76,13 @@ let dump_ encoding nln src =
   loop (Uutf.decoder ?nln ?encoding src)
     
 let dump_unix encoding nln usize fd =
-  let rec loop fd d s = match Uutf.decode d with
+  let rec loop fd s d = match Uutf.decode d with
   | `Await -> 
       let rc = unix_read fd s 0 (String.length s) in 
-      Uutf.Manual.src d s 0 rc; loop fd d s
-  | v -> pr_decode Format.std_formatter d v; if v <> `End then loop fd d s
+      Uutf.Manual.src d s 0 rc; loop fd s d
+  | v -> pr_decode Format.std_formatter d v; if v <> `End then loop fd s d
   in
-  loop fd (Uutf.decoder ?nln ?encoding `Manual) (String.create usize)
+  loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual) 
 
 let dump sin use_unix usize ie nln = 
   if sin || not use_unix then dump_ ie nln (src_for use_unix sin) else 
@@ -106,15 +106,15 @@ let decode_ encoding nln src =
   loop (Uutf.decoder ?nln ?encoding src)
 
 let decode_unix encoding nln usize fd =
-  let rec loop fd d s = match Uutf.decode d with
-  | `Uchar _ -> loop fd d s
+  let rec loop fd s d = match Uutf.decode d with
+  | `Uchar _ -> loop fd s d
   | `End -> () 
-  | `Malformed b -> log_malformed b; loop fd d s
+  | `Malformed b -> log_malformed b; loop fd s d
   | `Await -> 
       let rc = unix_read fd s 0 (String.length s) in 
-      Uutf.Manual.src d s 0 rc; loop fd d s
+      Uutf.Manual.src d s 0 rc; loop fd s d
   in
-  loop fd (Uutf.decoder ?nln ?encoding `Manual) (String.create usize)
+  loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual) 
 
 let decode sin use_unix usize ie nln =
   if sin || not use_unix then decode_ ie nln (src_for use_unix sin) else
