@@ -69,10 +69,10 @@ val cp_to_string : int -> string
     If [cp] is not a valid code point ["U+Invalid(X)"] is
     returned where [X] is the hexadecimal integer value.
 
-    {b Warning.} Not thread safe. Use {!print_cp} for thread safety. *)
+    {b Warning.} Not thread safe. Use {!pp_cp} for thread safety. *)
 
-val print_cp : Format.formatter -> int -> unit
-(** [print_cp ppf cp] prints [cp] on [ppf]. See {!cp_to_string}. *)
+val pp_cp : Format.formatter -> int -> unit
+(** [pp_cp ppf cp] prints [cp] on [ppf]. See {!cp_to_string}. *)
 
 (** {1:schemes Unicode encoding schemes} *)
 
@@ -230,8 +230,7 @@ val set_decoder_encoding : decoder -> [< decoder_encoding] -> unit
     
     {b Warning.} Call only after {!decode} was called on [d] and that the 
     last call to it returned something different from [`Await] or data may
-    be lost. After encoding guess wait for at least three [`Uchar]s.
-*)
+    be lost. After encoding guess wait for at least three [`Uchar]s. *)
 
 (**/**)
 
@@ -257,6 +256,11 @@ val decoder_src : decoder -> src
 
 val decoder_nln : decoder -> nln option
 (** [decoder_nln d] returns [d]'s newline normalization (if any). *)
+
+val pp_decode : Format.formatter -> 
+  [ `Await | `Uchar of uchar | `End | `Malformed of string] -> unit
+(** [pp_decode ppf v] prints an unspecified representation of [v] on
+    [ppf]. *)
 
 (** {1:encode Encode} *)
 

@@ -5,7 +5,7 @@
   ---------------------------------------------------------------------------*)
 
 let u_nl = 0x000A
-let pr_cp = Uutf.print_cp
+let pr_cp = Uutf.pp_cp
 let pr_byte ppf byte = Format.fprintf ppf "%02X" byte
 let pr_bytes ppf bs = 
   for i = 0 to String.length bs - 1 do 

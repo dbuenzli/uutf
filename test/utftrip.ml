@@ -4,24 +4,15 @@
    %%NAME%% version %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let pr = Format.fprintf 
-let pr_byte ppf byte = pr ppf "%02X" byte
-let pr_bytes ppf bs = 
-  for i = 0 to String.length bs - 1 
-  do pr ppf " %a" pr_byte (Char.code (bs.[i])) done
-
-let pr_pos ppf d = pr ppf "%d:%d:(%d) " 
+let pp = Format.fprintf
+let pp_pos ppf d = pp ppf "%d.%d:(%d) " 
   (Uutf.decoder_line d) (Uutf.decoder_col d) (Uutf.decoder_count d)
 
-let pr_decode ppf d v = match (pr_pos ppf d; v) with 
-| `Uchar u -> pr ppf "%a@\n" Uutf.print_cp u
-| `Malformed bs -> pr ppf "Malformed bytes%a@\n" pr_bytes bs
-| `End -> pr ppf "End@\n"
-| `Await -> pr ppf "Await@\n"
+let pp_decode ppf d v = pp ppf "%a%a@\n" pp_pos d Uutf.pp_decode v
 
 let exec = Filename.basename Sys.executable_name
 let log f = Format.eprintf ("%s: " ^^ f ^^ "@?") exec 
-let log_malformed b = log "skipped malformed bytes%a@\n" pr_bytes b
+let log_malformed v = log "skipped %a@\n" Uutf.pp_decode v
     
 (* IO tools  *)
 
@@ -71,7 +62,7 @@ let rec encode_unix fd s e v = match Uutf.encode e v with `Ok -> ()
 
 let dump_ encoding nln src =
   let rec loop d = match Uutf.decode d with `Await -> assert false
-  | v -> pr_decode Format.std_formatter d v; if v <> `End then loop d
+  | v -> pp_decode Format.std_formatter d v; if v <> `End then loop d
   in
   loop (Uutf.decoder ?nln ?encoding src)
     
@@ -80,7 +71,7 @@ let dump_unix encoding nln usize fd =
   | `Await -> 
       let rc = unix_read fd s 0 (String.length s) in 
       Uutf.Manual.src d s 0 rc; loop fd s d
-  | v -> pr_decode Format.std_formatter d v; if v <> `End then loop fd s d
+  | v -> pp_decode Format.std_formatter d v; if v <> `End then loop fd s d
   in
   loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual) 
 
@@ -101,7 +92,7 @@ let decode_ encoding nln src =
   let rec loop d = match Uutf.decode d with `Await -> assert false
   | `Uchar _ -> loop d
   | `End -> ()
-  | `Malformed b -> log_malformed b; loop d
+  | `Malformed _ as v -> log_malformed v; loop d
   in
   loop (Uutf.decoder ?nln ?encoding src)
 
@@ -109,7 +100,7 @@ let decode_unix encoding nln usize fd =
   let rec loop fd s d = match Uutf.decode d with
   | `Uchar _ -> loop fd s d
   | `End -> () 
-  | `Malformed b -> log_malformed b; loop fd s d
+  | `Malformed _ as v -> log_malformed v; loop fd s d
   | `Await -> 
       let rc = unix_read fd s 0 (String.length s) in 
       Uutf.Manual.src d s 0 rc; loop fd s d
@@ -160,7 +151,7 @@ let trip_ nln ie oe src dst =
   let rec loop d e = function `Await -> assert false
   | `Uchar _ as v -> ignore (Uutf.encode e v); loop d e (Uutf.decode d)
   | `End -> ignore (Uutf.encode e `End)
-  | `Malformed b -> log_malformed b; loop d e (Uutf.decode d)
+  | `Malformed _ as v -> log_malformed v; loop d e (Uutf.decode d)
   in
   let d = Uutf.decoder ?nln ?encoding:ie src in 
   let e, first = match oe with 
@@ -181,7 +172,7 @@ let trip_unix usize nln ie oe fdi fdo =
   | `Uchar _ as v ->
       encode_unix fdo es e v; loop fdi fdo ds es d e (Uutf.decode d)
   | `End -> encode_unix fdo es e `End
-  | `Malformed b -> log_malformed b; loop fdi fdo ds es d e (Uutf.decode d)
+  | `Malformed _ as v -> log_malformed v; loop fdi fdo ds es d e (Uutf.decode d)
   | `Await -> 
       let rc = unix_read fdi ds 0 (String.length ds) in 
       Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e (Uutf.decode d)

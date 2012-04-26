@@ -6,6 +6,7 @@
 
 let io_buffer_size = 65536                           (* IO_BUFFER_SIZE 4.0.0 *)
 
+let pp = Format.fprintf
 let invalid_encode () = invalid_arg "expected `Await encode"
 let invalid_bounds j l = 
   invalid_arg (Printf.sprintf "invalid bounds (index %d, length %d)" j l)
@@ -26,14 +27,13 @@ type uchar = int
 let u_bom = 0xFEFF                                                    (* BOM. *)
 let u_rep = 0xFFFD                                  (* replacement character. *)
 let is_uchar cp = 0x0000 <= cp && cp <= 0xD7FF && 0xE000 <= cp && cp <= 0x10FFFF
-let print_cp ppf cp =
-  if cp < 0 || cp > 0x10FFFF then Format.fprintf ppf "U+Invalid(%X)" cp else
-  if cp <= 0xFFFF then Format.fprintf ppf "U+%04X" cp else
-  Format.fprintf ppf "U+%X" cp
+let pp_cp ppf cp =
+  if cp < 0 || cp > 0x10FFFF then pp ppf "U+Invalid(%X)" cp else
+  if cp <= 0xFFFF then pp ppf "U+%04X" cp else 
+  pp ppf "U+%X" cp
 
 let cp_to_string cp =                                     (* NOT thread safe. *)
-  Format.fprintf Format.str_formatter "%a" print_cp cp;
-  Format.flush_str_formatter ()
+  pp Format.str_formatter "%a" pp_cp cp; Format.flush_str_formatter ()
 
 (* Unicode encoding schemes *)
 
@@ -166,6 +166,18 @@ let r_encoding s j l =                   (* guess encoding with max. 3 bytes. *)
 type src = [ `Channel of in_channel | `String of string | `Manual ]
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
+
+let pp_decode ppf = function
+| `Uchar u -> pp ppf "`Uchar %a" pp_cp u
+| `End -> pp ppf "`End"
+| `Await -> pp ppf "`Await"
+| `Malformed bs -> 
+    let l = String.length bs in
+    pp ppf "`Malformed ("; 
+    if l > 0 then pp ppf "%02X" (Char.code (bs.[0])); 
+    for i = 1 to l - 1 do pp ppf " %02X" (Char.code (bs.[i])) done; 
+    pp ppf ")"
+
 type decoder = 
   { src : src;                                               (* input source. *)
     mutable encoding : decoder_encoding;                 (* decoded encoding. *)
