@@ -52,7 +52,7 @@ let codec_test () =
       in
       let encode_u u = encode e (`Uchar u) in
       iter_uchars encode_u; encode e `End;
-      !spos - Uutf.Manual.dst_rem e                        (* encoded length. *)
+      !spos - Uutf.Manual.dst_rem e                       (* encoded length. *)
     in
     let decode_uchars encoding s slen bsize = 
       let spos = ref 0 in
@@ -78,7 +78,7 @@ let codec_test () =
     let slen = encode_uchars encoding s bsize in 
     decode_uchars encoding s slen bsize 
   in
-  let full = 4 * 0x10FFFF in         (* will hold everything in any encoding. *)
+  let full = 4 * 0x10FFFF in        (* will hold everything in any encoding. *)
   let s = String.create full in
   let test encoding = 
     (* Test with various sizes to increase condition coverage. *)
@@ -328,10 +328,10 @@ let utf8_decode_test bmap =
     end
   done
 
-let utf8_test () =                              (* Proof by exhaustiveness... *)
+let utf8_test () =                             (* Proof by exhaustiveness... *)
   let umap, bmap = utf8_maps () in 
   utf8_encode_test umap;
-(*  utf8_decode_test bmap; *)                         (* too long, commented. *)
+(*  utf8_decode_test bmap; *)                        (* too long, commented. *)
   ()
   
 let test () =

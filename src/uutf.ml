@@ -24,15 +24,15 @@ let unsafe_set_byte s j byte = String.unsafe_set s j (Char.unsafe_chr byte)
 (* Unicode characters *)
 
 type uchar = int
-let u_bom = 0xFEFF                                                    (* BOM. *)
-let u_rep = 0xFFFD                                  (* replacement character. *)
+let u_bom = 0xFEFF                                                   (* BOM. *)
+let u_rep = 0xFFFD                                 (* replacement character. *)
 let is_uchar cp = 0x0000 <= cp && cp <= 0xD7FF && 0xE000 <= cp && cp <= 0x10FFFF
 let pp_cp ppf cp =
   if cp < 0 || cp > 0x10FFFF then pp ppf "U+Invalid(%X)" cp else
   if cp <= 0xFFFF then pp ppf "U+%04X" cp else 
   pp ppf "U+%X" cp
 
-let cp_to_string cp =                                     (* NOT thread safe. *)
+let cp_to_string cp =                                    (* NOT thread safe. *)
   pp Format.str_formatter "%a" pp_cp cp; Format.flush_str_formatter ()
 
 (* Unicode encoding schemes *)
@@ -40,7 +40,7 @@ let cp_to_string cp =                                     (* NOT thread safe. *)
 type encoding = [ `UTF_8 | `UTF_16 | `UTF_16BE | `UTF_16LE ]
 type decoder_encoding = [ encoding | `US_ASCII | `ISO_8859_1 ]
 
-let encoding_of_string s = match String.uppercase s with       (* IANA names. *)
+let encoding_of_string s = match String.uppercase s with      (* IANA names. *)
 | "UTF-8" -> Some `UTF_8
 | "UTF-16" -> Some `UTF_16
 | "UTF-16LE" -> Some `UTF_16LE
@@ -61,7 +61,7 @@ let encoding_to_string = function
 (* Base character decoders. They assume enough data. *)
 
 let malformed s j l = `Malformed (String.sub s j l)    
-let malformed_pair be hi s j l =     (* missing or half low surrogate at eoi. *)
+let malformed_pair be hi s j l =    (* missing or half low surrogate at eoi. *)
   let bs1 = String.sub s j l in
   let bs0 = String.create 2 in
   let j0, j1 = if be then (0, 1) else (1, 0) in  
@@ -128,14 +128,14 @@ let r_utf_8 s j l =
       end
   | _ -> assert false
     
-let r_utf_16 s j0 j1 =                        (* May return a high surrogate. *)
+let r_utf_16 s j0 j1 =                       (* May return a high surrogate. *)
   (* assert (0 <= j0 && 0 <= j1 && max j0 j1 < String.length s); *)
   let b0 = unsafe_byte s j0 in let b1 = unsafe_byte s j1 in
   let u = (b0 lsl 8) lor b1 in
   if u < 0xD800 || u > 0xDFFF then `Uchar u else
   if u > 0xDBFF then malformed s (min j0 j1) 2 else `Hi u 
 
-let r_utf_16_lo hi s j0 j1 =           (* Combines [hi] with a low surrogate. *)
+let r_utf_16_lo hi s j0 j1 =          (* Combines [hi] with a low surrogate. *)
   (* assert (0 <= j0 && 0 <= j1 && max j0 j1 < String.length s); *)
   let b0 = unsafe_byte s j0 in 
   let b1 = unsafe_byte s j1 in 
@@ -144,7 +144,7 @@ let r_utf_16_lo hi s j0 j1 =           (* Combines [hi] with a low surrogate. *)
   then malformed_pair (j0 < j1 (* true => be *)) hi s (min j0 j1) 2 
   else `Uchar ((((hi land 0x3FF) lsl 10) lor (lo land 0x3FF)) + 0x10000)
     
-let r_encoding s j l =                   (* guess encoding with max. 3 bytes. *)
+let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
   (* assert (0 <= j && 0 <= l && j + l <= String.length s) *)
   let some i = if i < l then Some (unsafe_byte s (j + i)) else None in
   match (some 0), (some 1), (some 2) with
@@ -179,24 +179,24 @@ let pp_decode ppf = function
     pp ppf ")"
 
 type decoder = 
-  { src : src;                                               (* input source. *)
-    mutable encoding : decoder_encoding;                 (* decoded encoding. *)
-    nln : nln option;                      (* newline normalization (if any). *)
-    nl : int;                             (* newline normalization character. *)
-    mutable i : string;                               (* current input chunk. *)
-    mutable i_pos : int;                           (* input current position. *)
-    mutable i_max : int;                           (* input maximal position. *)
-    t : string;         (* four bytes temporary buffer for overlapping reads. *)
-    mutable t_len : int;                       (* current byte length of [t]. *)
-    mutable t_need : int;                   (* number of bytes needed in [t]. *)
-    mutable removed_bom : bool;      (* [true] if an initial BOM was removed. *)
-    mutable last_cr : bool;                    (* [true] if last char was CR. *)
-    mutable line : int;                                       (* line number. *)
-    mutable col : int;                                      (* column number. *)
-    mutable count : int;                                       (* char count. *)
-    mutable pp :         (* decoder post-processor for BOM, position and nln. *)
+  { src : src;                                              (* input source. *)
+    mutable encoding : decoder_encoding;                (* decoded encoding. *)
+    nln : nln option;                     (* newline normalization (if any). *)
+    nl : int;                            (* newline normalization character. *)
+    mutable i : string;                              (* current input chunk. *)
+    mutable i_pos : int;                          (* input current position. *)
+    mutable i_max : int;                          (* input maximal position. *)
+    t : string;        (* four bytes temporary buffer for overlapping reads. *)
+    mutable t_len : int;                      (* current byte length of [t]. *)
+    mutable t_need : int;                  (* number of bytes needed in [t]. *)
+    mutable removed_bom : bool;     (* [true] if an initial BOM was removed. *)
+    mutable last_cr : bool;                   (* [true] if last char was CR. *)
+    mutable line : int;                                      (* line number. *)
+    mutable col : int;                                     (* column number. *)
+    mutable count : int;                                      (* char count. *)
+    mutable pp :        (* decoder post-processor for BOM, position and nln. *)
       decoder -> [ `Malformed of string | `Uchar of uchar ] -> decode;
-    mutable k : decoder -> decode }                  (* decoder continuation. *)
+    mutable k : decoder -> decode }                 (* decoder continuation. *)
 
 (* On decodes that overlap two (or more) [d.i] buffers, we use [t_fill] to copy
    the input data to [d.t] and decode from there. If the [d.i] buffers are not 
@@ -205,14 +205,14 @@ type decoder =
    End of input (eoi) is signalled by [d.i_pos = 0] and [d.i_max = min_int] 
    which implies that [i_rem d < 0] is [true]. *)
 
-let i_rem d = d.i_max - d.i_pos + 1      (* remaining bytes to read in [d.i]. *)
-let eoi d = d.i <- ""; d.i_pos <- 0; d.i_max <- min_int    (* set eoi in [d]. *)
-let src d s j l =                                      (* set [d.i] with [s]. *)
+let i_rem d = d.i_max - d.i_pos + 1     (* remaining bytes to read in [d.i]. *)
+let eoi d = d.i <- ""; d.i_pos <- 0; d.i_max <- min_int   (* set eoi in [d]. *)
+let src d s j l =                                     (* set [d.i] with [s]. *)
   if (j < 0 || l < 0 || j + l > String.length s) then invalid_bounds j l else
   if (l = 0) then eoi d else
   (d.i <- s; d.i_pos <- j; d.i_max <- j + l - 1)
 
-let refill k d = match d.src with   (* get new input in [d.i] and [k]ontinue. *)
+let refill k d = match d.src with  (* get new input in [d.i] and [k]ontinue. *)
 | `Manual -> d.k <- k; `Await
 | `String _ -> eoi d; k d
 | `Channel ic ->
@@ -220,7 +220,7 @@ let refill k d = match d.src with   (* get new input in [d.i] and [k]ontinue. *)
     (src d d.i 0 rc; k d)
 
 let t_need d need = d.t_len <- 0; d.t_need <- need
-let rec t_fill k d =       (* get [d.t_need] bytes (or less if eoi) in [i.t]. *)
+let rec t_fill k d =      (* get [d.t_need] bytes (or less if eoi) in [i.t]. *)
   let blit d l = 
     unsafe_blit d.i d.i_pos d.t d.t_len (* write pos. *) l; 
     d.i_pos <- d.i_pos + l; d.t_len <- d.t_len + l;
@@ -230,7 +230,7 @@ let rec t_fill k d =       (* get [d.t_need] bytes (or less if eoi) in [i.t]. *)
   let need = d.t_need - d.t_len in 
   if rem < need then (blit d rem; refill (t_fill k) d) else (blit d need; k d)
 
-let ret k v d = d.k <- k; d.pp d v              (* return post-processed [v]. *)
+let ret k v d = d.k <- k; d.pp d v             (* return post-processed [v]. *)
 
 (* Decoders. *)
 
@@ -248,7 +248,7 @@ let rec decode_iso_8859_1 d =
 
 (* UTF-8 decoder *)
 
-let rec t_decode_utf_8 d =                              (* decode from [d.t]. *)
+let rec t_decode_utf_8 d =                             (* decode from [d.t]. *)
   if d.t_len < d.t_need
   then ret decode_utf_8 (malformed d.t 0 d.t_len) d 
   else ret decode_utf_8 (r_utf_8 d.t 0 d.t_len) d
@@ -265,12 +265,12 @@ and decode_utf_8 d =
 
 (* UTF-16BE decoder *)
 
-let rec t_decode_utf_16be_lo hi d =                     (* decode from [d.t]. *)
+let rec t_decode_utf_16be_lo hi d =                    (* decode from [d.t]. *)
   if d.t_len < d.t_need 
   then ret decode_utf_16be (malformed_pair true hi d.t 0 d.t_len) d
   else ret decode_utf_16be (r_utf_16_lo hi d.t 0 1) d
 
-and t_decode_utf_16be d =                               (* decode from [d.t]. *)
+and t_decode_utf_16be d =                              (* decode from [d.t]. *)
   if d.t_len < d.t_need 
   then ret decode_utf_16be (malformed d.t 0 d.t_len) d 
   else decode_utf_16be_lo (r_utf_16 d.t 0 1) d
@@ -292,12 +292,12 @@ and decode_utf_16be d =
 
 (* UTF-16LE decoder, same as UTF-16BE with byte swapped. *)
 
-let rec t_decode_utf_16le_lo hi d =                     (* decode from [d.t]. *)
+let rec t_decode_utf_16le_lo hi d =                    (* decode from [d.t]. *)
   if d.t_len < d.t_need 
   then ret decode_utf_16le (malformed_pair false hi d.t 0 d.t_len) d
   else ret decode_utf_16le (r_utf_16_lo hi d.t 1 0) d
 
-and t_decode_utf_16le d =                               (* decode from [d.t]. *)
+and t_decode_utf_16le d =                              (* decode from [d.t]. *)
   if d.t_len < d.t_need 
   then ret decode_utf_16le (malformed d.t 0 d.t_len) d 
   else decode_utf_16le_lo (r_utf_16 d.t 1 0) d
@@ -321,8 +321,8 @@ and decode_utf_16le d =
    after is tedious, uutf's decoders are not designed to put bytes
    back in the stream. *)
 
-let guessed_utf_8 d =                    (* start decoder after `UTF_8 guess. *)
-  let b3 d =                                  (* handles the third read byte. *)
+let guessed_utf_8 d =                   (* start decoder after `UTF_8 guess. *)
+  let b3 d =                                 (* handles the third read byte. *)
     let b3 = unsafe_byte d.t 2 in 
     match utf_8_len.(b3) with
     | 0 -> ret decode_utf_8 (malformed d.t 2 1) d
@@ -330,20 +330,20 @@ let guessed_utf_8 d =                    (* start decoder after `UTF_8 guess. *)
         d.t_need <- n; d.t_len <- 1; unsafe_set_byte d.t 0 b3; 
         t_fill t_decode_utf_8 d
   in
-  let b2 d =                                      (* handle second read byte. *)
+  let b2 d =                                     (* handle second read byte. *)
     let b2 = unsafe_byte d.t 1 in 
     let b3 = if d.t_len > 2 then b3 else decode_utf_8 (* decodes `End *) in
     match utf_8_len.(b2) with 
     | 0 -> ret b3 (malformed d.t 1 1) d 
     | 1 -> ret b3 (r_utf_8 d.t 1 1) d
-    | n ->                          (* copy d.t.(1-2) to d.t.(0-1) and decode *)
+    | n ->                         (* copy d.t.(1-2) to d.t.(0-1) and decode *)
         d.t_need <- n;
         unsafe_set_byte d.t 0 b2;
         if (d.t_len < 3) then d.t_len <- 1 else 
         (d.t_len <- 2; unsafe_set_byte d.t 1 (unsafe_byte d.t 2); ); 
         t_fill t_decode_utf_8 d
   in
-  let b1 = unsafe_byte d.t 0 in                    (* handle first read byte. *)
+  let b1 = unsafe_byte d.t 0 in                   (* handle first read byte. *)
   let b2 = if d.t_len > 1 then b2 else decode_utf_8 (* decodes `End *) in
   match utf_8_len.(b1) with 
   | 0 -> ret b2 (malformed d.t 0 1) d
@@ -367,7 +367,7 @@ let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
   in
   let b3 k d = 
     if d.t_len < 3 then decode_utf_16 d (* decodes `End *) else
-    begin                              (* copy d.t.(2) to d.t.(0) and decode. *)
+    begin                             (* copy d.t.(2) to d.t.(0) and decode. *)
       d.t_need <- 2; d.t_len <- 1; 
       unsafe_set_byte d.t 0 (unsafe_byte d.t 2);
       t_fill k d
@@ -383,7 +383,7 @@ let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
         if d.t_len < 3 then ret decode_utf_16 (malformed_pair be hi "" 0 0) d 
         else (b3 (t_decode_utf_16_lo hi)) d
           
-let guess_encoding d =                   (* guess encoding and start decoder. *)
+let guess_encoding d =                  (* guess encoding and start decoder. *)
   let setup d = match r_encoding d.t 0 d.t_len with
   | `UTF_8 r -> 
       d.encoding <- `UTF_8; d.k <- decode_utf_8; 
@@ -405,12 +405,12 @@ let guess_encoding d =                   (* guess encoding and start decoder. *)
    used for the first character to remove a possible initial BOM and
    handle UTF-16 endianness recognition. *)
 
-let nline d = d.col <- 0; d.line <- d.line + 1                    (* inlined. *)
-let ncol d = d.col <- d.col + 1                                   (* inlined. *)
-let ncount d = d.count <- d.count + 1                             (* inlined. *)
-let cr d b = d.last_cr <- b                                       (* inlined. *)
+let nline d = d.col <- 0; d.line <- d.line + 1                   (* inlined. *)
+let ncol d = d.col <- d.col + 1                                  (* inlined. *)
+let ncount d = d.count <- d.count + 1                            (* inlined. *)
+let cr d b = d.last_cr <- b                                      (* inlined. *)
 
-let pp_remove_bom utf16 pp d = function (* removes init. BOM, handles UTF-16. *)
+let pp_remove_bom utf16 pp d = function(* removes init. BOM, handles UTF-16. *)
 | `Uchar 0xFEFF (* BOM *) ->
     if utf16 then (d.encoding <- `UTF_16BE; d.k <- decode_utf_16be);
     d.removed_bom <- true; d.pp <- pp; d.k d
@@ -459,7 +459,7 @@ let pp_nln_ascii d = function
 
 let decode_fun = function 
 | `UTF_8 -> decode_utf_8
-| `UTF_16 -> decode_utf_16be                          (* see [pp_remove_bom]. *)
+| `UTF_16 -> decode_utf_16be                         (* see [pp_remove_bom]. *)
 | `UTF_16BE -> decode_utf_16be
 | `UTF_16LE -> decode_utf_16le
 | `US_ASCII -> decode_us_ascii
@@ -477,8 +477,8 @@ let decoder ?nln ?encoding src =
   | Some e -> (e :> decoder_encoding), decode_fun e
   in
   let i, i_pos, i_max = match src with 
-  | `Manual -> "", 1, 0                             (* implies src_rem d = 0. *)
-  | `Channel _ -> String.create io_buffer_size, 1, 0                 (* idem. *)
+  | `Manual -> "", 1, 0                            (* implies src_rem d = 0. *)
+  | `Channel _ -> String.create io_buffer_size, 1, 0                (* idem. *)
   | `String s -> s, 0, String.length s - 1
   in
   { src = (src :> src); encoding; nln = (nln :> nln option); nl; 
@@ -502,15 +502,15 @@ let set_decoder_encoding d e =
 type dst = [ `Channel of out_channel | `Buffer of Buffer.t | `Manual ]
 type encode = [ `Await | `End | `Uchar of uchar ]
 type encoder = 
-  { dst : dst;                                         (* output destination. *)
-    encoding : encoding;                                 (* encoded encoding. *)
-    mutable o : string;                              (* current output chunk. *)
-    mutable o_pos : int;                    (* next output position to write. *)
-    mutable o_max : int;                 (* maximal output position to write. *)
-    t : string;                  (* four bytes buffer for overlapping writes. *)
-    mutable t_pos : int;                     (* next position to read in [t]. *)
-    mutable t_max : int;                  (* maximal position to read in [t]. *)
-    mutable k :                                      (* encoder continuation. *)
+  { dst : dst;                                        (* output destination. *)
+    encoding : encoding;                                (* encoded encoding. *)
+    mutable o : string;                             (* current output chunk. *)
+    mutable o_pos : int;                   (* next output position to write. *)
+    mutable o_max : int;                (* maximal output position to write. *)
+    t : string;                 (* four bytes buffer for overlapping writes. *)
+    mutable t_pos : int;                    (* next position to read in [t]. *)
+    mutable t_max : int;                 (* maximal position to read in [t]. *)
+    mutable k :                                     (* encoder continuation. *)
       encoder -> encode -> [ `Ok | `Partial ] }
 
 (* On encodes that overlap two (or more) [e.o] buffers, we encode the
@@ -519,19 +519,19 @@ type encoder =
    the [e.o] buffers are not too small this is faster than
    continuation based byte per byte writes. *)
    
-let o_rem e = e.o_max - e.o_pos + 1     (* remaining bytes to write in [e.o]. *)
-let dst e s j l =                                      (* set [e.o] with [s]. *)
+let o_rem e = e.o_max - e.o_pos + 1    (* remaining bytes to write in [e.o]. *)
+let dst e s j l =                                     (* set [e.o] with [s]. *)
   if (j < 0 || l < 0 || j + l > String.length s) then invalid_bounds j l; 
   e.o <- s; e.o_pos <- j; e.o_max <- j + l - 1
 
 let partial k e = function `Await -> k e | `Uchar _ | `End -> invalid_encode ()
-let flush k e = match e.dst with (* get free storage in [d.o] and [k]ontinue. *)
+let flush k e = match e.dst with(* get free storage in [d.o] and [k]ontinue. *)
 | `Manual -> e.k <- partial k; `Partial 
 | `Buffer b -> Buffer.add_substring b e.o 0 e.o_pos; e.o_pos <- 0; k e
 | `Channel oc -> output oc e.o 0 e.o_pos; e.o_pos <- 0; k e
 
 let t_range e max = e.t_pos <- 0; e.t_max <- max
-let rec t_flush k e =              (* flush [d.t] up to [d.t_max] in [d.i]. *)
+let rec t_flush k e =               (* flush [d.t] up to [d.t_max] in [d.i]. *)
   let blit e l =
     unsafe_blit e.t e.t_pos e.o e.o_pos l; 
     e.o_pos <- e.o_pos + l; e.t_pos <- e.t_pos + l
@@ -617,7 +617,7 @@ let rec encode_utf_16be e v =
         k e
       end
 
-let rec encode_utf_16le e v =           (* encode_uft_16be with byte swapped. *)
+let rec encode_utf_16le e v =         (* encode_uft_16be with bytes swapped. *)
   let k e = e.k <- encode_utf_16le; `Ok in
   match v with
   | `Await -> k e
@@ -658,7 +658,7 @@ let encode_fun = function
 
 let encoder encoding dst =
   let o, o_pos, o_max = match dst with 
-  | `Manual -> "", 1, 0                               (* implies o_rem e = 0. *)
+  | `Manual -> "", 1, 0                              (* implies o_rem e = 0. *)
   | `Buffer _ 
   | `Channel _ -> String.create io_buffer_size, 0, io_buffer_size - 1
   in
@@ -728,7 +728,7 @@ end
 
 module Buffer = struct
   let add_utf_8 b u =                                  
-    let w byte = Buffer.add_char b (unsafe_chr byte) in           (* inlined. *)
+    let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u <= 0x007F then 
     (w u)
     else if u <= 0x07FF then 
@@ -745,7 +745,7 @@ module Buffer = struct
      w (0x80 lor (u land 0x3F)))
 
   let add_utf_16be b u =
-    let w byte = Buffer.add_char b (unsafe_chr byte) in           (* inlined. *)
+    let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u < 0x10000 then (w (u lsr 8); w (u land 0xFF)) else
     let u' = u - 0x10000 in 
     let hi = (0xD800 lor (u' lsr 10)) in
@@ -753,8 +753,8 @@ module Buffer = struct
     w (hi lsr 8); w (hi land 0xFF);
     w (lo lsr 8); w (lo land 0xFF)
 
-  let add_utf_16le b u =                             (* swapped add_utf_16be. *)
-    let w byte = Buffer.add_char b (unsafe_chr byte) in           (* inlined. *)
+  let add_utf_16le b u =                            (* swapped add_utf_16be. *)
+    let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u < 0x10000 then (w (u land 0xFF); w (u lsr 8)) else
     let u' = u - 0x10000 in 
     let hi = (0xD800 lor (u' lsr 10)) in

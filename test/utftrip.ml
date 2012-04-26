@@ -16,8 +16,8 @@ let log_malformed v = log "skipped %a@\n" Uutf.pp_decode v
     
 (* IO tools  *)
 
-let io_buffer_size = 65536                           (* IO_BUFFER_SIZE 4.0.0 *)
-let unix_buffer_size = 65535                       (* UNIX_BUFFER_SIZE 4.0.0 *)
+let io_buffer_size = 65536                          (* IO_BUFFER_SIZE 4.0.0 *)
+let unix_buffer_size = 65535                      (* UNIX_BUFFER_SIZE 4.0.0 *)
 
 let rec unix_read fd s j l = try Unix.read fd s j l with 
 | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
@@ -187,7 +187,7 @@ let trip_unix usize nln ie oe fdi fdo =
           Uutf.Manual.src d ds 0 rc; decode_past_await d
       | v -> v
       in
-      let v = decode_past_await d in                         (* get encoding. *)
+      let v = decode_past_await d in                        (* get encoding. *)
       let enc = match Uutf.decoder_encoding d with 
       | #Uutf.encoding as enc -> enc | `ISO_8859_1 | `US_ASCII -> `UTF_8
       in
