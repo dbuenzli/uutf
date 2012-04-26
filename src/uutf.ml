@@ -6,9 +6,9 @@
 
 let io_buffer_size = 65536                           (* IO_BUFFER_SIZE 4.0.0 *)
 
-let err fmt = Format.ksprintf (fun e -> invalid_arg e) fmt
-let err_exp_await () = err "expected `Await encode"
-let err_bounds j l = err "invalid bounds (index %d, len %d)" j l
+let invalid_encode () = invalid_arg "expected `Await encode"
+let invalid_bounds j l = 
+  invalid_arg (Printf.sprintf "invalid bounds (index %d, length %d)" j l)
 
 (* Unsafe string byte manipulations. If you don't believe the author's
    invariants, replacing with safe versions makes everything safe in
@@ -196,7 +196,7 @@ type decoder =
 let i_rem d = d.i_max - d.i_pos + 1      (* remaining bytes to read in [d.i]. *)
 let eoi d = d.i <- ""; d.i_pos <- 0; d.i_max <- min_int    (* set eoi in [d]. *)
 let src d s j l =                                      (* set [d.i] with [s]. *)
-  if (j < 0 || l < 0 || j + l > String.length s) then err_bounds j l else
+  if (j < 0 || l < 0 || j + l > String.length s) then invalid_bounds j l else
   if (l = 0) then eoi d else
   (d.i <- s; d.i_pos <- j; d.i_max <- j + l - 1)
 
@@ -509,10 +509,10 @@ type encoder =
    
 let o_rem e = e.o_max - e.o_pos + 1     (* remaining bytes to write in [e.o]. *)
 let dst e s j l =                                      (* set [e.o] with [s]. *)
-  if (j < 0 || l < 0 || j + l > String.length s) then err_bounds j l; 
+  if (j < 0 || l < 0 || j + l > String.length s) then invalid_bounds j l; 
   e.o <- s; e.o_pos <- j; e.o_max <- j + l - 1
 
-let partial k e = function `Await -> k e | `Uchar _ | `End -> err_exp_await ()
+let partial k e = function `Await -> k e | `Uchar _ | `End -> invalid_encode ()
 let flush k e = match e.dst with (* get free storage in [d.o] and [k]ontinue. *)
 | `Manual -> e.k <- partial k; `Partial 
 | `Buffer b -> Buffer.add_substring b e.o 0 e.o_pos; e.o_pos <- 0; k e
@@ -646,7 +646,7 @@ let encode_fun = function
 
 let encoder encoding dst =
   let o, o_pos, o_max = match dst with 
-  | `Manual -> "", 1, 0                             (* implies dst_rem e = 0. *)
+  | `Manual -> "", 1, 0                               (* implies o_rem e = 0. *)
   | `Buffer _ 
   | `Channel _ -> String.create io_buffer_size, 0, io_buffer_size - 1
   in
@@ -668,7 +668,6 @@ end
 (* Strings folders and Buffer encoders *)
 
 module String = struct 
-
   let encoding_guess s = match r_encoding s 0 (max (String.length s) 3) with
   | `UTF_8 d -> `UTF_8, (d = `BOM)
   | `UTF_16BE d -> `UTF_16BE, (d = `BOM)
@@ -700,7 +699,6 @@ module String = struct
           loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) l
     in
     loop acc f s 0 (String.length s)
-
 
   let fold_utf_16le f acc s =             (* [fold_utf_16be], bytes swapped. *)
     let rec loop acc f s i l = 

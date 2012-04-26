@@ -259,7 +259,7 @@ let main () =
     "-oe", Arg.String oe_fun,
     "<enc>, output encoding, UTF-8, UTF-16, UTF-16BE, UTF-16LE.";
     "-nln", Arg.String nln_fun,
-    "<kind>, newline normalization to U+000A, ASCII, NLF or Readline.";
+    "<kind>, U+000A newline normalization, ASCII, NLF or Readline.";
     "-sin", Arg.Set sin, "input as string and decode the string.";
     "-sout", Arg.Set sout, "encode as string and output the string.";
     "-unix", Arg.Set use_unix, "use Unix IO.";
