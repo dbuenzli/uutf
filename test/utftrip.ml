@@ -240,6 +240,7 @@ let main () =
   let usize = ref unix_buffer_size in 
   let rseed = ref (Random.self_init (); Random.int (1 lsl 30 - 1)) in
   let rcount = ref 1_000_000 in
+  let nat s r v = if v > 0 then r := v else log "%s must be > 0, ignored\n" s in
   let options = [
     "-dump", Arg.Unit (set_cmd `Dump), "dump scalar values and their position.";
     "-guess", Arg.Unit (set_cmd `Guess), "only guess the encoding.";
@@ -254,9 +255,10 @@ let main () =
     "-sin", Arg.Set sin, "input as string and decode the string.";
     "-sout", Arg.Set sout, "encode as string and output the string.";
     "-unix", Arg.Set use_unix, "use Unix IO.";
-    "-usize", Arg.Set_int usize,"Unix IO buffer sizes in bytes.";
-    "-rseed", Arg.Set_int rseed, "random seed."; 
-    "-rcount", Arg.Set_int rcount, "number of random characters to generate."; ]
+    "-usize", Arg.Int (nat "-usize" usize),"Unix IO buffer sizes in bytes.";
+    "-rseed", Arg.Int (nat "-rseed" rseed), "random seed."; 
+    "-rcount", Arg.Int (nat "-rcount" rcount), 
+    "number of random characters to generate."; ]
   in
   Arg.parse options (fun _ -> raise (Arg.Bad "illegal argument")) usage;
   match !cmd with 
