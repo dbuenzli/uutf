@@ -5,25 +5,13 @@
   ---------------------------------------------------------------------------*)
 
 let u_nl = 0x000A
-let pr_cp = Uutf.pp_cp
-let pr_byte ppf byte = Format.fprintf ppf "%02X" byte
-let pr_bytes ppf bs = 
-  for i = 0 to String.length bs - 1 do 
-    Format.fprintf ppf " %a" pr_byte (Char.code (bs.[i]))
-  done
-
-let pr_decode ppf = function 
-| `Malformed bs -> Format.fprintf ppf "`Malformed%a" pr_bytes bs
-| `Uchar u -> Format.fprintf ppf "`Uchar %a" pr_cp u
-| `End -> Format.fprintf ppf "`End"
-| `Await -> Format.fprintf ppf "`Await"
-
 let log f = Format.printf (f ^^ "@?") 
 let fail fmt =
   let fail _ = failwith (Format.flush_str_formatter ()) in
   Format.kfprintf fail Format.str_formatter fmt
 
-let fail_decode e f = fail "expected %a, decoded %a" pr_decode e pr_decode f
+let fail_decode e f = 
+  fail "expected %a, decoded %a" Uutf.pp_decode e Uutf.pp_decode f
 
 let uchar_succ = function 
 | 0xD7FF -> 0xE000
@@ -69,7 +57,7 @@ let codec_test () =
       in
       let decode_u u = match decode d with 
       | `Uchar u' when u = u' -> () 
-      | v -> fail "decoded %a for %a" pr_decode v pr_cp u
+      | v -> fail_decode (`Uchar u) v
       in
       iter_uchars decode_u; 
       match decode d with 
@@ -96,7 +84,7 @@ let buffer_string_codec_test () =
     let s = Buffer.contents b in
     let check uchar _ = function
     | `Uchar u when u = uchar -> uchar_succ uchar
-    | v -> fail "decoded %a for %a" pr_decode v pr_cp uchar
+    | v -> fail_decode (`Uchar uchar) v
     in
     ignore (decode check 0x0000 s)
   in

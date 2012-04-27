@@ -258,7 +258,7 @@ val decoder_nln : decoder -> nln option
 (** [decoder_nln d] returns [d]'s newline normalization (if any). *)
 
 val pp_decode : Format.formatter -> 
-  [ `Await | `Uchar of uchar | `End | `Malformed of string] -> unit
+  [< `Await | `Uchar of uchar | `End | `Malformed of string] -> unit
 (** [pp_decode ppf v] prints an unspecified representation of [v] on
     [ppf]. *)
 
