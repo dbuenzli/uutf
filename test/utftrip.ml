@@ -17,7 +17,7 @@ let log_malformed v = log "skipped %a@\n" Uutf.pp_decode v
 (* IO tools  *)
 
 let io_buffer_size = 65536                          (* IO_BUFFER_SIZE 4.0.0 *)
-let unix_buffer_size = 65535                      (* UNIX_BUFFER_SIZE 4.0.0 *)
+let unix_buffer_size = 65536                      (* UNIX_BUFFER_SIZE 4.0.0 *)
 
 let rec unix_read fd s j l = try Unix.read fd s j l with 
 | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
