@@ -193,7 +193,16 @@ xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
     the column set to zero. For example the line is [2] and column [0]
     after the first newline was decoded. This can be understood as if {!decode}
     was moving an insertion point to the right in the data.  A {e
-    newline} is anything normalized by [`Readline], see {!nln}. *)
+    newline} is anything normalized by [`Readline], see {!nln}. 
+    
+    [Uutf] assumes that each Unicode scalar value has a column width
+    of 1. The same assumption may not be made by the display program
+    (e.g. for [emacs]' compilation mode you need to set
+    [compilation-error-screen-columns] to [nil]). For implementing
+    more involved column width increments yourself, look into
+    {{:http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c}[wcwidth]} and
+    {{:http://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries}
+    grapheme cluster boundaries}. *)
 
 val decode : decoder -> 
   [ `Await | `Uchar of uchar | `End | `Malformed of string]
