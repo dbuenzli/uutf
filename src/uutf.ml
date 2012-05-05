@@ -168,15 +168,15 @@ type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
 
 let pp_decode ppf = function
-| `Uchar u -> pp ppf "`Uchar %a" pp_cp u
+| `Uchar u -> pp ppf "@[`Uchar %a@]" pp_cp u
 | `End -> pp ppf "`End"
 | `Await -> pp ppf "`Await"
 | `Malformed bs -> 
     let l = String.length bs in
-    pp ppf "`Malformed ("; 
+    pp ppf "@[`Malformed @[("; 
     if l > 0 then pp ppf "%02X" (Char.code (bs.[0])); 
     for i = 1 to l - 1 do pp ppf " %02X" (Char.code (bs.[i])) done; 
-    pp ppf ")"
+    pp ppf ")@]@]"
 
 type decoder = 
   { src : src;                                              (* input source. *)

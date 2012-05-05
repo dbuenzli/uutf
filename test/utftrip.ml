@@ -228,7 +228,7 @@ let trip inf sin sout use_unix usize ie oe nln =
 let main () = 
   let usage = Printf.sprintf 
     "Usage: %s [OPTION]... [INFILE]\n\
-    \ recode UTF-{8,16,16LE,16BE} from stdin to stdout.\n\
+    \ Recode UTF-{8,16,16LE,16BE} from stdin to stdout.\n\
     \ If no input encoding is specified, it is guessed. If no output\n\
     \ encoding is specified, same as input.\n\
          Options:" exec

@@ -65,7 +65,7 @@ val cp_to_string : int -> string
 (** [cp_to_string cp] represents the
     {{:http://unicode.org/glossary/#code_point}code point} [cp] in
     ASCII according to the Unicode notational convention
-    (see Appendix A in Unicode 6.0.0).
+    (see Appendix A in Unicode 6.1.0).
     If [cp] is not a valid code point ["U+Invalid(X)"] is
     returned where [X] is the hexadecimal integer value.
 
@@ -108,7 +108,7 @@ type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
     normalization character.
     {ul
     {- [`ASCII], normalizes CR ([U+000D]), LF ([U+000A]) and CRLF
-       (<[U+000D] [U+000A]>).}
+       (<[U+000D], [U+000A]>).}
     {- [`NLF], normalizes the Unicode newline function (NLF). This is
        NEL ([U+0085]) and the normalizations of [`ASCII].}
     {- [`Readline], normalizes for a Unicode readline function. This is FF
@@ -117,7 +117,7 @@ type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
     Used with an appropriate normalization character the [`NLF] and 
     [`Readline] normalizations allow to implement all the different 
     recommendations of Unicode's newline guidelines (section 5.8 in 
-    Unicode 6.0.0). *)
+    Unicode 6.1.0). *)
 
 type decoder
 (** The type for decoders. *)
@@ -363,7 +363,7 @@ module String : sig
   val fold_utf_8 : 'a folder -> 'a -> string -> 'a 
   (** [fold_utf_8 f a s] is 
       [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [) 
-      j]{_i}[ u]{_n}.
+      j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value} scalar value} 
       and the starting position of the characters in the 
@@ -371,8 +371,8 @@ module String : sig
 
   val fold_utf_16be : 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16be f a s] is 
-      [f (] ... [(f (f a 0 u][) j]{_1}[ u]{_1}[)] ... [)] ... [)
-      j]{_i}[ u]{_n}.
+      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+      j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value} 
       and the starting position of the characters in the 
@@ -381,7 +381,7 @@ module String : sig
   val fold_utf_16le : 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16le f a s] is 
       [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
-      j]{_i}[ u]{_n}.
+      j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value} 
       and the starting position of the characters in the 
@@ -421,7 +421,7 @@ end
     The value of [lines src] is the list of lines in [src] as UTF-8
     encoded OCaml strings. Line breaks are determined according to the
     recommendation R4 for a [readline] function in section 5.8 of
-    Unicode 6.0.0. If a decoding error occurs we silently replace the
+    Unicode 6.1.0. If a decoding error occurs we silently replace the
     malformed sequence by the replacement character {!u_rep} and continue.
 {[let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
   let rec loop d buf acc = match Uutf.decode d with 

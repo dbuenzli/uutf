@@ -84,20 +84,3 @@ let recode_fd ?nln ?encoding out_encoding
   let e = Uutf.encoder out_encoding `Manual in
   Uutf.Manual.dst e es 0 (String.length es);
   loop fdi fdo ds es d e
-
-
-
-
-
-
-
-      
-  
-
-
-
-
-
-      
-
-
