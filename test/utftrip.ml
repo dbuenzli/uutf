@@ -272,7 +272,7 @@ let main () =
     "-dec", Arg.Unit (set_cmd `Decode), " Decode only, no encoding"; 
     "-enc", Arg.Unit (set_cmd `Encode), " Encode only (random), no decoding";
     "-ie", Arg.String ie_fun,
-    "<enc> Input encoding: UTF-8, UTF-16, UTF-16BE, UTF-16LE, ASCII or latin1";
+    "<enc> Input encoding: UTF-8, UTF-16, UTF-16BE, UTF-16LE, ASCII, latin1";
     "-oe", Arg.String oe_fun,
     "<enc> Output encoding: UTF-8, UTF-16, UTF-16BE or UTF-16LE";
     "-nln", Arg.String nln_fun,
@@ -280,10 +280,11 @@ let main () =
     "-sin", Arg.Set sin, " Input as string and decode the string";
     "-sout", Arg.Set sout, " Encode as string and output the string";
     "-unix", Arg.Set use_unix, " Use Unix IO";
-    "-usize", Arg.Int (nat "-usize" usize)," Unix IO buffer sizes in bytes";
-    "-rseed", Arg.Int (nat "-rseed" rseed), " Random seed"; 
+    "-usize", Arg.Int (nat "-usize" usize),
+    "<int> Unix IO buffer sizes in bytes";
+    "-rseed", Arg.Int (nat "-rseed" rseed), "<int> Random seed"; 
     "-rcount", Arg.Int (nat "-rcount" rcount), 
-    " Number of random characters to generate"; ]
+    "<int> Number of random characters to generate"; ]
   in
   Arg.parse (Arg.align options) set_inf usage;
   match !cmd with 
