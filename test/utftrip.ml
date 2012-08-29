@@ -229,8 +229,8 @@ let main () =
   let usage = Printf.sprintf 
     "Usage: %s [OPTION]... [INFILE]\n\
     \ Recode UTF-{8,16,16LE,16BE} from stdin to stdout.\n\
-    \ If no input encoding is specified, it is guessed. If no output\n\
-    \ encoding is specified, same as input.\n\
+    \ If no input encoding is specified, it is guessed. If no output encoding\n\
+    \ is specified, the input encoding is used.\n\
          Options:" exec
   in
   let cmd = ref `Trip in
@@ -266,25 +266,26 @@ let main () =
   let rcount = ref 1_000_000 in
   let nat s r v = if v > 0 then r := v else log "%s must be > 0, ignored\n" s in
   let options = [
-    "-dump", Arg.Unit (set_cmd `Dump), "dump scalar values and their position.";
-    "-guess", Arg.Unit (set_cmd `Guess), "only guess the encoding.";
-    "-dec", Arg.Unit (set_cmd `Decode), "decode only, no encoding."; 
-    "-enc", Arg.Unit (set_cmd `Encode), "(random) encode only, no decoding.";
+    "-dump", Arg.Unit (set_cmd `Dump), 
+    " Dump scalar values in ASCII with their position, one per line";
+    "-guess", Arg.Unit (set_cmd `Guess), " Only guess the encoding";
+    "-dec", Arg.Unit (set_cmd `Decode), " Decode only, no encoding"; 
+    "-enc", Arg.Unit (set_cmd `Encode), " Encode only (random), no decoding";
     "-ie", Arg.String ie_fun,
-    "<enc>, input encoding, UTF-8, UTF-16, UTF-16BE, UTF-16LE, ASCII, latin1.";
+    "<enc> Input encoding: UTF-8, UTF-16, UTF-16BE, UTF-16LE, ASCII or latin1";
     "-oe", Arg.String oe_fun,
-    "<enc>, output encoding, UTF-8, UTF-16, UTF-16BE, UTF-16LE.";
+    "<enc> Output encoding: UTF-8, UTF-16, UTF-16BE or UTF-16LE";
     "-nln", Arg.String nln_fun,
-    "<kind>, U+000A newline normalization, ASCII, NLF or Readline.";
-    "-sin", Arg.Set sin, "input as string and decode the string.";
-    "-sout", Arg.Set sout, "encode as string and output the string.";
-    "-unix", Arg.Set use_unix, "use Unix IO.";
-    "-usize", Arg.Int (nat "-usize" usize),"Unix IO buffer sizes in bytes.";
-    "-rseed", Arg.Int (nat "-rseed" rseed), "random seed."; 
+    "<kind> Newline normalization to U+000A: ASCII, NLF or Readline";
+    "-sin", Arg.Set sin, " Input as string and decode the string";
+    "-sout", Arg.Set sout, " Encode as string and output the string";
+    "-unix", Arg.Set use_unix, " Use Unix IO";
+    "-usize", Arg.Int (nat "-usize" usize)," Unix IO buffer sizes in bytes";
+    "-rseed", Arg.Int (nat "-rseed" rseed), " Random seed"; 
     "-rcount", Arg.Int (nat "-rcount" rcount), 
-    "number of random characters to generate."; ]
+    " Number of random characters to generate"; ]
   in
-  Arg.parse options set_inf usage;
+  Arg.parse (Arg.align options) set_inf usage;
   match !cmd with 
   | `Dump -> dump !inf !sin !use_unix !usize !ie !nln 
   | `Guess -> guess !inf
