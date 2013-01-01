@@ -26,7 +26,8 @@ let unsafe_set_byte s j byte = String.unsafe_set s j (Char.unsafe_chr byte)
 type uchar = int
 let u_bom = 0xFEFF                                                   (* BOM. *)
 let u_rep = 0xFFFD                                 (* replacement character. *)
-let is_uchar cp = 0x0000 <= cp && cp <= 0xD7FF && 0xE000 <= cp && cp <= 0x10FFFF
+let is_uchar cp =
+  (0x0000 <= cp && cp <= 0xD7FF) || (0xE000 <= cp && cp <= 0x10FFFF)
 let pp_cp ppf cp =
   if cp < 0 || cp > 0x10FFFF then pp ppf "U+Invalid(%X)" cp else
   if cp <= 0xFFFF then pp ppf "U+%04X" cp else 

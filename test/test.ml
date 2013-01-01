@@ -321,7 +321,20 @@ let utf8_test () =                             (* Proof by exhaustiveness... *)
   utf8_encode_test umap;
 (*  utf8_decode_test bmap; *)                        (* too long, commented. *)
   ()
-  
+
+let is_uchar_test () =
+  log "Testing is_uchar.\n";
+  let test cp expected =
+    let is = Uutf.is_uchar cp in
+    if is <> expected then
+      fail "is_uchar(%a)=%b, expected %b" Uutf.pp_decode (`Uchar cp) is expected in
+  test 0x0 true;
+  test 0xD7FF true;
+  test 0xD800 false;
+  test 0xDFFF false;
+  test 0xE000 true;
+  test 0x10FFFF true;;
+ 
 let test () =
   Printexc.record_backtrace true;
   codec_test ();
@@ -329,6 +342,7 @@ let test () =
   pos_test ();
   guess_test ();
   utf8_test ();
+  is_uchar_test ();
   log "All tests succeeded.\n"
 
 let () = if not (!Sys.interactive) then test ()
