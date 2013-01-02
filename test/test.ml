@@ -323,18 +323,18 @@ let utf8_test () =                             (* Proof by exhaustiveness... *)
   ()
 
 let is_uchar_test () =
-  log "Testing is_uchar.\n";
+  log "Testing Uutf.is_uchar.\n";
   let test cp expected =
     let is = Uutf.is_uchar cp in
     if is <> expected then
-      fail "is_uchar(%a)=%b, expected %b" Uutf.pp_decode (`Uchar cp) is expected in
-  test 0x0 true;
-  test 0xD7FF true;
-  test 0xD800 false;
-  test 0xDFFF false;
-  test 0xE000 true;
-  test 0x10FFFF true;;
- 
+    fail "Uutf.is_uchar %a = %b, expected %b" 
+      Uutf.pp_decode (`Uchar cp) is expected 
+  in
+  for cp = 0x0000 to 0xD7FF do test cp true done;
+  for cp = 0xD800 to 0xDFFF do test cp false done;
+  for cp = 0xE000 to 0x10FFFF do test cp true done;
+  for cp = 0x110000 to 0x120000 do test cp false done
+
 let test () =
   Printexc.record_backtrace true;
   codec_test ();
