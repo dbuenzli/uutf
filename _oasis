@@ -1,6 +1,6 @@
 OASISFormat: 0.3
 Name: uutf
-Version: 0.9.1
+Version: 0.9.2
 Synopsis: Non-blocking streaming Unicode codec for OCaml
 Authors: Daniel Bünzli <daniel.buenzli at erratique.ch>
 Copyrights: (c) 2012 Daniel C. Bünzli
