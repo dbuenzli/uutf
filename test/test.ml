@@ -162,6 +162,14 @@ let guess_test () =
         [`Uchar u_nl; `Malformed "\x80"; `Uchar Uutf.u_bom; `Uchar u_nl]);
   test ("\n\n\xEF\xBB\x00\n", `UTF_8, false, 
         [`Uchar u_nl; `Uchar u_nl; `Malformed "\xEF\xBB\x00"; `Uchar u_nl;]);
+  test ("\n\xC8\x99", `UTF_8, false, [`Uchar u_nl; `Uchar 0x0219;]);
+  test ("\xC8\x99\n", `UTF_8, false, [`Uchar 0x0219; `Uchar u_nl;]);
+  test ("\xC8\x99\n\n", `UTF_8, false, 
+        [`Uchar 0x0219; `Uchar u_nl; `Uchar u_nl]);
+  test ("\xC8\x99\xC8\x99", `UTF_8, false, [`Uchar 0x0219; `Uchar 0x0219]);
+  test ("\xC8\x99\xF0\x9F\x90\xAB", `UTF_8, false, 
+        [`Uchar 0x0219; `Uchar 0x1F42B]);
+  test ("\xF0\x9F\x90\xAB\n", `UTF_8, false, [`Uchar 0x1F42B; `Uchar u_nl ]);
   (* UTF-16BE guess *)
   test ("\xFE\xFF\xDB\xFF\xDF\xFF\x00\x0A", `UTF_16BE, true, 
         [`Uchar 0x10FFFF; `Uchar u_nl;]);

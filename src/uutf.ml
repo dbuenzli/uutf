@@ -353,7 +353,7 @@ let guessed_utf_8 d =                   (* start decoder after `UTF_8 guess. *)
   | 2 -> 
       if d.t_len < 2 then ret decode_utf_8 (malformed d.t 0 1) d else 
       if d.t_len < 3 then ret decode_utf_8 (r_utf_8 d.t 0 2) d else 
-      ret b2 (r_utf_8 d.t 0 2) d
+      ret b3 (r_utf_8 d.t 0 2) d
   | 3 -> 
       if d.t_len < 3 then ret decode_utf_8 (malformed d.t 0 d.t_len) d else
       ret decode_utf_8 (r_utf_8 d.t 0 3) d
