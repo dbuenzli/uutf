@@ -1,5 +1,5 @@
 (*---------------------------------------------------------------------------
-   Copyright %%COPYRIGHT%%. All rights reserved.
+   Copyright 2012 Daniel C. Bünzli. All rights reserved.
    Distributed under the BSD3 license, see license at the end of the file.
    %%NAME%% release %%VERSION%%
   ---------------------------------------------------------------------------*)
@@ -20,7 +20,7 @@
 
   See {{:#examples}examples} of use.
 
-  {e Release %%VERSION%% - %%AUTHORS%% }
+  {e Release %%VERSION%% - %%MAINTAINER%% }
 
   {3 References}
     {ul 
@@ -520,7 +520,7 @@ end
 *)
     
 (*---------------------------------------------------------------------------
-   Copyright %%COPYRIGHT%%
+   Copyright 2012 Daniel C. Bünzli
    All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
