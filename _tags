@@ -1,4 +1,4 @@
-<**/*.{ml,mli}> : annot, debug
+<**/*.{ml,mli}> : bin_annot
 <src> : include
 <test> : include
 <test/utftrip.{byte,native}> : use_unix
