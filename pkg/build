@@ -10,7 +10,8 @@ LOC=`dirname $0`
 NATIVE=$1
 
 add lib pkg/META                
-add lib src/uutf.mli      
+add lib src/uutf.mli
+add lib src/uutf.cmti
 add lib src/uutf.cmi
 add lib src/uutf.cmx
 add lib src/uutf.cma
