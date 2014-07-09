@@ -9,6 +9,6 @@ ocaml-version: [>= "4.00.0"]
 depends: ["ocamlfind"]
 build: 
 [
-  ["./pkg/pkg-git" ]
-  ["./pkg/build" "true" ]
+  ["configure.ml" ]
+  [ make ]
 ]
