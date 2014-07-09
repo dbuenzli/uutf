@@ -1,0 +1,1 @@
+- Add a name attribute to store e.g. filename ? 
