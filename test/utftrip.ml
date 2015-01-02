@@ -4,9 +4,11 @@
    %%NAME%% version %%VERSION%%
   ---------------------------------------------------------------------------*)
 
+let str = Printf.sprintf
 let pp = Format.fprintf
-let pp_pos ppf d = pp ppf "%d.%d:(%d) "
+let pp_pos ppf d = pp ppf "%d.%d:(%d,%06X) "
   (Uutf.decoder_line d) (Uutf.decoder_col d) (Uutf.decoder_count d)
+  (Uutf.decoder_byte_count d)
 
 let pp_decode inf d ppf v = pp ppf "%s:%a%a@\n" inf pp_pos d Uutf.pp_decode v
 
@@ -151,6 +153,10 @@ let encode_f_unix usize encoding fd =
   encode_unix fd s e
 
 let r_encode sout use_unix usize rseed rcount oe =
+  let rseed = match rseed with
+  | None -> Random.self_init (); Random.int (1 lsl 30 - 1)
+  | Some rseed -> rseed
+  in
   let dst = dst_for sout in
   let oe = match oe with None -> `UTF_8 | Some enc -> enc in
   let encode_f =
@@ -225,76 +231,120 @@ let trip inf sin sout use_unix usize ie oe nln =
   match dst with `Channel _ -> ()
   | `Buffer b -> string_to_channel use_unix stdout (Buffer.contents b)
 
-let main () =
-  let usage = Printf.sprintf
-    "Usage: %s [OPTION]... [INFILE]\n\
-    \ Recode UTF-{8,16,16LE,16BE} from stdin to stdout.\n\
-    \ If no input encoding is specified, it is guessed. If no output encoding\n\
-    \ is specified, the input encoding is used.\n\
-         Options:" exec
-  in
-  let cmd = ref `Trip in
-  let set_cmd v () = cmd := v in
-  let inf = ref "-" in
-  let set_inf f =
-    if !inf <> "-" then raise (Arg.Bad "only one file can be specified") else
-    inf := f
-  in
-  let ie = ref None in
-  let ie_fun e = match Uutf.encoding_of_string e with
-  | Some e -> ie := Some e
-  | None -> log "unsupported input encoding '%s', trying to guess.\n" e
-  in
-  let oe = ref None in
-  let oe_fun e = match Uutf.encoding_of_string e with
-  | None | Some (`US_ASCII | `ISO_8859_1) ->
-    log "unsupported output encoding '%s', using UTF-8\n" e; oe := Some `UTF_8
-  | (Some #Uutf.encoding) as enc -> oe := enc
-  in
-  let nln = ref None in
-  let nln_fun s = match String.lowercase s with
-  | "ascii" -> nln := Some (`ASCII 0x000A)
-  | "nlf" -> nln := Some (`NLF 0x000A)
-  | "readline" -> nln := Some (`Readline 0x000A)
-  | n -> log "unknown line normalization (%s), won't normalize" n
-  in
-  let sin = ref false in
-  let sout = ref false in
-  let use_unix = ref false in
-  let usize = ref unix_buffer_size in
-  let rseed = ref (Random.self_init (); Random.int (1 lsl 30 - 1)) in
-  let rcount = ref 1_000_000 in
-  let nat s r v = if v > 0 then r := v else log "%s must be > 0, ignored\n" s in
-  let options = [
-    "-dump", Arg.Unit (set_cmd `Dump),
-    " Dump scalar values in ASCII with their position, one per line";
-    "-guess", Arg.Unit (set_cmd `Guess), " Only guess the encoding";
-    "-dec", Arg.Unit (set_cmd `Decode), " Decode only, no encoding";
-    "-enc", Arg.Unit (set_cmd `Encode), " Encode only (random), no decoding";
-    "-ie", Arg.String ie_fun,
-    "<enc> Input encoding: UTF-8, UTF-16, UTF-16BE, UTF-16LE, ASCII, latin1";
-    "-oe", Arg.String oe_fun,
-    "<enc> Output encoding: UTF-8, UTF-16, UTF-16BE or UTF-16LE";
-    "-nln", Arg.String nln_fun,
-    "<kind> Newline normalization to U+000A: ASCII, NLF or Readline";
-    "-sin", Arg.Set sin, " Input as string and decode the string";
-    "-sout", Arg.Set sout, " Encode as string and output the string";
-    "-unix", Arg.Set use_unix, " Use Unix IO";
-    "-usize", Arg.Int (nat "-usize" usize),
-    "<int> Unix IO buffer sizes in bytes";
-    "-rseed", Arg.Int (nat "-rseed" rseed), "<int> Random seed";
-    "-rcount", Arg.Int (nat "-rcount" rcount),
-    "<int> Number of random characters to generate"; ]
-  in
-  Arg.parse (Arg.align options) set_inf usage;
-  match !cmd with
-  | `Dump -> dump !inf !sin !use_unix !usize !ie !nln
-  | `Guess -> guess !inf
-  | `Decode -> decode !inf !sin !use_unix !usize !ie !nln
-  | `Encode -> r_encode !sout !use_unix !usize !rseed !rcount !oe
-  | `Trip -> trip !inf !sin !sout !use_unix !usize !ie !oe !nln
+(* Cmd *)
 
-let () = main ()
+let do_cmd cmd inf sin sout use_unix usize ie oe nln rseed rcount =
+  match cmd with
+  | `Ascii -> dump inf sin use_unix usize ie nln
+  | `Guess -> guess inf
+  | `Decode -> decode inf sin use_unix usize ie nln
+  | `Encode -> r_encode sout use_unix usize rseed rcount oe
+  | `Trip -> trip inf sin sout use_unix usize ie oe nln
+
+(* Cmdline interface *)
+
+open Cmdliner
+
+let enc_enum =
+  [ "UTF-8", `UTF_8; "UTF-16", `UTF_16; "UTF-16LE", `UTF_16LE;
+    "UTF-16BE", `UTF_16BE; ]
+
+let decode_enc_enum =
+  ("ASCII", `US_ASCII) :: ("latin1", `ISO_8859_1) :: enc_enum
+
+let ienc =
+  let doc = str "Input encoding, must %s. If unspecified the encoding is \
+                 guessed."
+                (Arg.doc_alts_enum decode_enc_enum)
+  in
+  Arg.(value & opt (some (enum decode_enc_enum)) None &
+       info ["i"; "input-encoding"] ~doc)
+
+let oenc =
+  let doc = str "Output encoding, must %s. If unspecified the output encoding
+                 is the same as the input encoding except for ASCII and latin1
+                 where UTF-8 is output." (Arg.doc_alts_enum enc_enum)
+  in
+  Arg.(value & opt (some (enum enc_enum)) None &
+       info ["o"; "output-encoding"] ~doc)
+
+let nln =
+  let nln_enum =
+    ["ascii", `ASCII 0x000A; "nlf", `NLF 0x000A; "readline", `Readline 0x000A]
+  in
+  let doc = str "New line normalization to U+000A, must %s."
+      (Arg.doc_alts_enum nln_enum)
+  in
+  Arg.(value & opt (some (enum nln_enum)) None & info ["nln"] ~doc)
+
+let sin =
+  let doc = "Input everything in a string and decode the string." in
+  Arg.(value & flag & info [ "input-string" ] ~doc)
+
+let sout =
+  let doc = "Encode everything in a string and output the string." in
+  Arg.(value & flag & info [ "output-string" ] ~doc)
+
+let use_unix =
+  let doc = "Use Unix IO." in
+  Arg.(value & flag & info [ "use-unix" ] ~doc)
+
+let usize =
+  let doc = "Unix IO buffer sizes in bytes." in
+  Arg.(value & opt int unix_buffer_size & info ["unix-size"] ~doc)
+
+let nat =
+  let parse s =
+    try
+      let v = int_of_string s in
+      if v > 0 then `Ok v else failwith (str "%s must be > 0" s)
+    with Failure e -> `Error e
+  in
+  parse, Format.pp_print_int
+
+let rseed =
+  let doc = "Random seed." in
+  Arg.(value & opt (some nat) None & info ["rseed"] ~doc)
+
+let rcount =
+  let doc = "Number of random characters to generate." in
+  Arg.(value & opt nat 1_000_000 & info ["rcount"] ~doc)
+
+let file =
+  let doc = "The input file. Reads from stdin if unspecified." in
+  Arg.(value & pos 0 string "-" & info [] ~doc ~docv:"FILE")
+
+let cmd =
+  let doc = "Output the input text as Unicode scalar values, one per line,
+             in the US-ASCII charset with their position."
+  in
+  let ascii = `Ascii, Arg.info ["a"; "ascii"] ~doc in
+  let doc = "Only guess the encoding." in
+  let guess = `Guess, Arg.info ["g"; "guess"] ~doc in
+  let doc = "Decode only, no encoding." in
+  let dec = `Decode, Arg.info ["d"; "decode"] ~doc in
+  let doc = "Encode only (random), no decoding." in
+  let enc = `Encode, Arg.info ["e"; "encode"] ~doc in
+  Arg.(value & vflag `Trip [ascii; guess; dec; enc])
+
+let cmd =
+  let doc = "Recode UTF-{8,16,16LE,16BE} from stdin to stdout." in
+  let man = [
+    `S "DESCRIPTION";
+    `P "$(tname) inputs Unicode text from stdin and rewrites it
+        to stdout in various ways. If no input encoding is specified,
+        it is guessed. If no output encoding is specified, the input
+        encoding is used.";
+    `S "BUGS";
+    `P "This program is distributed with the Uutf OCaml library.
+        See http://erratique.ch/software/uutf for contact
+        information."; ]
+  in
+  Term.(pure do_cmd $ cmd $ file $ sin $ sout $ use_unix $ usize $
+        ienc $ oenc $ nln $ rseed $ rcount),
+  Term.info "utftrip" ~version:"%%VERSION%%" ~doc ~man
+
+let () = match Term.eval cmd with `Error _ -> exit 1 | _ -> exit 0
 
 (*---------------------------------------------------------------------------
    Copyright 2012 Daniel C. Bünzli

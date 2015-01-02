@@ -1,6 +1,8 @@
 
 - Add `Uutf.decoder_byte_count` returning the bytes decoded so far.
-
+- `utftrip` now uses `Cmdliner` which becomes an optional dependency
+  of the package. The cli interface is not compatible with previous
+  versions.
 
 v0.9.3 2013-08-10 Cambridge (UK)
 --------------------------------

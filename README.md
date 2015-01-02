@@ -48,4 +48,5 @@ The resulting binaries are in `_build/test` :
 
 - `test.native` tests the library, nothing should fail.
 - `utftrip.native`, among other things, reads unicode on `stdin` and rewrites 
-  it on `stdout`. Invoke with `-help` for more information. 
+  it on `stdout`. Invoke with `--help` for more information. Depends
+  on [Cmdliner](http://erratique.ch/software/cmdliner).
