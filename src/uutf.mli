@@ -251,6 +251,11 @@ val decoder_col : decoder -> int
 (** [decoder_col d] is the column number of the last decoded
     (or malformed) character. See {!decoder} for details. *)
 
+val decoder_byte_count : decoder -> int
+(** [decoder_byte_count d] is the number of bytes already decoded on
+    [d] (including malformed ones). This is the last {!decode}'s
+    end byte offset counting from the beginning of the stream. *)
+
 val decoder_count : decoder -> int
 (** [decoder_count d] is the number of characters already decoded on [d]
     (including malformed ones). See {!decoder} for details. *)

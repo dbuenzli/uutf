@@ -195,6 +195,7 @@ type decoder =
     mutable last_cr : bool;                   (* [true] if last char was CR. *)
     mutable line : int;                                      (* line number. *)
     mutable col : int;                                     (* column number. *)
+    mutable byte_count : int;                                 (* byte count. *)
     mutable count : int;                                      (* char count. *)
     mutable pp :        (* decoder post-processor for BOM, position and nln. *)
       decoder -> [ `Malformed of string | `Uchar of uchar ] -> decode;
@@ -232,7 +233,8 @@ let rec t_fill k d =      (* get [d.t_need] bytes (or less if eoi) in [i.t]. *)
   let need = d.t_need - d.t_len in
   if rem < need then (blit d rem; refill (t_fill k) d) else (blit d need; k d)
 
-let ret k v d = d.k <- k; d.pp d v             (* return post-processed [v]. *)
+let ret k v byte_count d =                     (* return post-processed [v]. *)
+  d.k <- k; d.byte_count <- d.byte_count + byte_count; d.pp d v
 
 (* Decoders. *)
 
@@ -240,20 +242,20 @@ let rec decode_us_ascii d =
   let rem = i_rem d in
   if rem <= 0 then (if rem < 0 then `End else refill decode_us_ascii d) else
   let j = d.i_pos in
-  d.i_pos <- d.i_pos + 1; ret decode_us_ascii (r_us_ascii d.i j) d
+  d.i_pos <- d.i_pos + 1; ret decode_us_ascii (r_us_ascii d.i j) 1 d
 
 let rec decode_iso_8859_1 d =
   let rem = i_rem d in
   if rem <= 0 then (if rem < 0 then `End else refill decode_iso_8859_1 d) else
   let j = d.i_pos in
-  d.i_pos <- d.i_pos + 1; ret decode_iso_8859_1 (r_iso_8859_1 d.i j) d
+  d.i_pos <- d.i_pos + 1; ret decode_iso_8859_1 (r_iso_8859_1 d.i j) 1 d
 
 (* UTF-8 decoder *)
 
 let rec t_decode_utf_8 d =                             (* decode from [d.t]. *)
   if d.t_len < d.t_need
-  then ret decode_utf_8 (malformed d.t 0 d.t_len) d
-  else ret decode_utf_8 (r_utf_8 d.t 0 d.t_len) d
+  then ret decode_utf_8 (malformed d.t 0 d.t_len) d.t_len d
+  else ret decode_utf_8 (r_utf_8 d.t 0 d.t_len) d.t_len d
 
 and decode_utf_8 d =
   let rem = i_rem d in
@@ -262,28 +264,30 @@ and decode_utf_8 d =
   if rem < need then (t_need d need; t_fill t_decode_utf_8 d) else
   let j = d.i_pos in
   if need = 0
-  then (d.i_pos <- d.i_pos + 1; ret decode_utf_8 (malformed d.i j 1) d)
-  else (d.i_pos <- d.i_pos + need; ret decode_utf_8 (r_utf_8 d.i j need) d)
+  then (d.i_pos <- d.i_pos + 1; ret decode_utf_8 (malformed d.i j 1) 1 d)
+  else (d.i_pos <- d.i_pos + need; ret decode_utf_8 (r_utf_8 d.i j need) need d)
 
 (* UTF-16BE decoder *)
 
 let rec t_decode_utf_16be_lo hi d =                    (* decode from [d.t]. *)
+  let bcount = d.t_len + 2 (* hi count *) in
   if d.t_len < d.t_need
-  then ret decode_utf_16be (malformed_pair true hi d.t 0 d.t_len) d
-  else ret decode_utf_16be (r_utf_16_lo hi d.t 0 1) d
+  then ret decode_utf_16be (malformed_pair true hi d.t 0 d.t_len) bcount d
+  else ret decode_utf_16be (r_utf_16_lo hi d.t 0 1) bcount d
 
 and t_decode_utf_16be d =                              (* decode from [d.t]. *)
   if d.t_len < d.t_need
-  then ret decode_utf_16be (malformed d.t 0 d.t_len) d
+  then ret decode_utf_16be (malformed d.t 0 d.t_len) d.t_len d
   else decode_utf_16be_lo (r_utf_16 d.t 0 1) d
 
 and decode_utf_16be_lo v d = match v with
-| `Uchar _ | `Malformed _ as v -> ret decode_utf_16be v d
+| `Uchar _ | `Malformed _ as v -> ret decode_utf_16be v 2 d
 | `Hi hi ->
     let rem = i_rem d in
     if rem < 2 then (t_need d 2; t_fill (t_decode_utf_16be_lo hi) d) else
     let j = d.i_pos in
-    d.i_pos <- d.i_pos + 2; ret decode_utf_16be (r_utf_16_lo hi d.i j (j + 1)) d
+    d.i_pos <- d.i_pos + 2;
+    ret decode_utf_16be (r_utf_16_lo hi d.i j (j + 1)) 4 d
 
 and decode_utf_16be d =
   let rem = i_rem d in
@@ -295,22 +299,24 @@ and decode_utf_16be d =
 (* UTF-16LE decoder, same as UTF-16BE with byte swapped. *)
 
 let rec t_decode_utf_16le_lo hi d =                    (* decode from [d.t]. *)
+  let bcount = d.t_len + 2 (* hi count *) in
   if d.t_len < d.t_need
-  then ret decode_utf_16le (malformed_pair false hi d.t 0 d.t_len) d
-  else ret decode_utf_16le (r_utf_16_lo hi d.t 1 0) d
+  then ret decode_utf_16le (malformed_pair false hi d.t 0 d.t_len) bcount d
+  else ret decode_utf_16le (r_utf_16_lo hi d.t 1 0) bcount d
 
 and t_decode_utf_16le d =                              (* decode from [d.t]. *)
   if d.t_len < d.t_need
-  then ret decode_utf_16le (malformed d.t 0 d.t_len) d
+  then ret decode_utf_16le (malformed d.t 0 d.t_len) d.t_len d
   else decode_utf_16le_lo (r_utf_16 d.t 1 0) d
 
 and decode_utf_16le_lo v d = match v with
-| `Uchar _ | `Malformed _ as v -> ret decode_utf_16le v d
+| `Uchar _ | `Malformed _ as v -> ret decode_utf_16le v 2 d
 | `Hi hi ->
     let rem = i_rem d in
     if rem < 2 then (t_need d 2; t_fill (t_decode_utf_16le_lo hi) d) else
     let j = d.i_pos in
-    d.i_pos <- d.i_pos + 2; ret decode_utf_16le (r_utf_16_lo hi d.i (j + 1) j) d
+    d.i_pos <- d.i_pos + 2;
+    ret decode_utf_16le (r_utf_16_lo hi d.i (j + 1) j) 4 d
 
 and decode_utf_16le d =
   let rem = i_rem d in
@@ -327,7 +333,7 @@ let guessed_utf_8 d =                   (* start decoder after `UTF_8 guess. *)
   let b3 d =                                 (* handles the third read byte. *)
     let b3 = unsafe_byte d.t 2 in
     match utf_8_len.(b3) with
-    | 0 -> ret decode_utf_8 (malformed d.t 2 1) d
+    | 0 -> ret decode_utf_8 (malformed d.t 2 1) 1 d
     | n ->
         d.t_need <- n; d.t_len <- 1; unsafe_set_byte d.t 0 b3;
         t_fill t_decode_utf_8 d
@@ -336,8 +342,8 @@ let guessed_utf_8 d =                   (* start decoder after `UTF_8 guess. *)
     let b2 = unsafe_byte d.t 1 in
     let b3 = if d.t_len > 2 then b3 else decode_utf_8 (* decodes `End *) in
     match utf_8_len.(b2) with
-    | 0 -> ret b3 (malformed d.t 1 1) d
-    | 1 -> ret b3 (r_utf_8 d.t 1 1) d
+    | 0 -> ret b3 (malformed d.t 1 1) 1 d
+    | 1 -> ret b3 (r_utf_8 d.t 1 1) 1 d
     | n ->                         (* copy d.t.(1-2) to d.t.(0-1) and decode *)
         d.t_need <- n;
         unsafe_set_byte d.t 0 b2;
@@ -348,18 +354,20 @@ let guessed_utf_8 d =                   (* start decoder after `UTF_8 guess. *)
   let b1 = unsafe_byte d.t 0 in                   (* handle first read byte. *)
   let b2 = if d.t_len > 1 then b2 else decode_utf_8 (* decodes `End *) in
   match utf_8_len.(b1) with
-  | 0 -> ret b2 (malformed d.t 0 1) d
-  | 1 -> ret b2 (r_utf_8 d.t 0 1) d
+  | 0 -> ret b2 (malformed d.t 0 1) 1 d
+  | 1 -> ret b2 (r_utf_8 d.t 0 1) 1 d
   | 2 ->
-      if d.t_len < 2 then ret decode_utf_8 (malformed d.t 0 1) d else
-      if d.t_len < 3 then ret decode_utf_8 (r_utf_8 d.t 0 2) d else
-      ret b3 (r_utf_8 d.t 0 2) d
+      if d.t_len < 2 then ret decode_utf_8 (malformed d.t 0 1) 1 d else
+      if d.t_len < 3 then ret decode_utf_8 (r_utf_8 d.t 0 2) 2 d else
+      ret b3 (r_utf_8 d.t 0 2) 2 d
   | 3 ->
-      if d.t_len < 3 then ret decode_utf_8 (malformed d.t 0 d.t_len) d else
-      ret decode_utf_8 (r_utf_8 d.t 0 3) d
+      if d.t_len < 3
+      then ret decode_utf_8 (malformed d.t 0 d.t_len) d.t_len d
+      else ret decode_utf_8 (r_utf_8 d.t 0 3) 3 d
   | 4 ->
-      if d.t_len < 3 then ret decode_utf_8 (malformed d.t 0 d.t_len) d else
-      (d.t_need <- 4; t_fill t_decode_utf_8 d)
+      if d.t_len < 3
+      then ret decode_utf_8 (malformed d.t 0 d.t_len) d.t_len d
+      else (d.t_need <- 4; t_fill t_decode_utf_8 d)
   | n -> assert false
 
 let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
@@ -376,13 +384,14 @@ let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
     end
   in
   match v with
-  | `BOM -> ret (b3 t_decode_utf_16) (`Uchar u_bom) d
-  | `ASCII u -> ret (b3 t_decode_utf_16) (`Uchar u) d
+  | `BOM -> ret (b3 t_decode_utf_16) (`Uchar u_bom) 2 d
+  | `ASCII u -> ret (b3 t_decode_utf_16) (`Uchar u) 2 d
   | `Decode ->
       match r_utf_16 d.t j0 j1 with
-      | `Malformed _ | `Uchar _ as v -> ret (b3 t_decode_utf_16) v d
+      | `Malformed _ | `Uchar _ as v -> ret (b3 t_decode_utf_16) v 2 d
       | `Hi hi ->
-        if d.t_len < 3 then ret decode_utf_16 (malformed_pair be hi "" 0 0) d
+        if d.t_len < 3
+        then ret decode_utf_16 (malformed_pair be hi "" 0 0) d.t_len d
         else (b3 (t_decode_utf_16_lo hi)) d
 
 let guess_encoding d =                  (* guess encoding and start decoder. *)
@@ -390,7 +399,7 @@ let guess_encoding d =                  (* guess encoding and start decoder. *)
   | `UTF_8 r ->
       d.encoding <- `UTF_8; d.k <- decode_utf_8;
       begin match r with
-      | `BOM -> ret decode_utf_8 (`Uchar u_bom) d
+      | `BOM -> ret decode_utf_8 (`Uchar u_bom) 3 d
       | `Decode -> guessed_utf_8 d
       | `End -> `End
       end
@@ -485,12 +494,14 @@ let decoder ?nln ?encoding src =
   in
   { src = (src :> src); encoding; nln = (nln :> nln option); nl;
     i; i_pos; i_max; t = String.create 4; t_len = 0; t_need = 0;
-    removed_bom = false; last_cr = false; line = 1; col = 0; count = 0;
+    removed_bom = false; last_cr = false; line = 1; col = 0;
+    byte_count = 0; count = 0;
     pp = pp_remove_bom (encoding = `UTF_16) pp; k }
 
 let decode d = d.k d
 let decoder_line d = d.line
 let decoder_col d = d.col
+let decoder_byte_count d = d.byte_count
 let decoder_count d = d.count
 let decoder_removed_bom d = d.removed_bom
 let decoder_src d = d.src

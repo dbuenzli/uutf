@@ -1,3 +1,7 @@
+
+- Add `Uutf.decoder_byte_count` returning the bytes decoded so far.
+
+
 v0.9.3 2013-08-10 Cambridge (UK)
 --------------------------------
 
