@@ -253,29 +253,34 @@ let decode_enc_enum =
   ("ASCII", `US_ASCII) :: ("latin1", `ISO_8859_1) :: enc_enum
 
 let ienc =
-  let doc = str "Input encoding, must %s. If unspecified the encoding is \
-                 guessed."
+  let doc = str "Decoded (input) encoding, must %s. If unspecified the
+                 encoding is guessed."
                 (Arg.doc_alts_enum decode_enc_enum)
   in
   Arg.(value & opt (some (enum decode_enc_enum)) None &
-       info ["i"; "input-encoding"] ~doc)
+       info ["d"; "input-encoding"] ~doc)
 
 let oenc =
-  let doc = str "Output encoding, must %s. If unspecified the output encoding
-                 is the same as the input encoding except for ASCII and latin1
-                 where UTF-8 is output." (Arg.doc_alts_enum enc_enum)
+  let doc = str "Encoded (output) encoding, must %s. If unspecified the output
+                 encoding is the same as the input encoding except for ASCII
+                 and latin1 where UTF-8 is output." (Arg.doc_alts_enum enc_enum)
   in
   Arg.(value & opt (some (enum enc_enum)) None &
-       info ["o"; "output-encoding"] ~doc)
+       info ["e"; "output-encoding"] ~doc)
 
 let nln =
   let nln_enum =
     ["ascii", `ASCII 0x000A; "nlf", `NLF 0x000A; "readline", `Readline 0x000A]
   in
-  let doc = str "New line normalization to U+000A, must %s."
+  let doc = str "New line normalization to U+000A, must %s. ascii
+                 normalizes CR (U+000D) and CRLF (<U+000D, U+000A>). nlf
+                 normalizes like ascii plus NEL (U+0085). readline
+                 normalizes like nlf plus FF (U+000C), LS (U+2028),
+                 PS (U+2029)."
       (Arg.doc_alts_enum nln_enum)
   in
-  Arg.(value & opt (some (enum nln_enum)) None & info ["nln"] ~doc)
+  let vopt = Some (`Readline 0x000A) in
+  Arg.(value & opt ~vopt (some (enum nln_enum)) None & info ["nln"] ~doc)
 
 let sin =
   let doc = "Input everything in a string and decode the string." in
@@ -322,9 +327,9 @@ let cmd =
   let doc = "Only guess the encoding." in
   let guess = `Guess, Arg.info ["g"; "guess"] ~doc in
   let doc = "Decode only, no encoding." in
-  let dec = `Decode, Arg.info ["d"; "decode"] ~doc in
+  let dec = `Decode, Arg.info ["decode"] ~doc in
   let doc = "Encode only (random), no decoding." in
-  let enc = `Encode, Arg.info ["e"; "encode"] ~doc in
+  let enc = `Encode, Arg.info ["encode"] ~doc in
   Arg.(value & vflag `Trip [ascii; guess; dec; enc])
 
 let cmd =
