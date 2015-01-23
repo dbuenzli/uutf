@@ -84,7 +84,6 @@ let dump_decode inf d v =
   (match v with `Malformed _ -> input_malformed := true | _ -> ());
   (pp_decode inf d) Format.std_formatter v
 
-
 let dump_ inf encoding nln src =
   let rec loop inf d = match Uutf.decode d with `Await -> assert false
   | v ->
@@ -182,11 +181,13 @@ let r_encode sout use_unix usize rseed rcount oe =
 (* Trip *)
 
 let trip_ inf nln ie oe src dst =
-  let malformed = log_malformed inf in
+  let malformed d v e =
+    log_malformed inf d v; ignore (Uutf.encode e (`Uchar Uutf.u_rep))
+  in
   let rec loop d e = function `Await -> assert false
   | `Uchar _ as v -> ignore (Uutf.encode e v); loop d e (Uutf.decode d)
   | `End -> ignore (Uutf.encode e `End)
-  | `Malformed _ as v -> malformed d v; loop d e (Uutf.decode d)
+  | `Malformed _ as v -> malformed d v e; loop d e (Uutf.decode d)
   in
   let d = Uutf.decoder ?nln ?encoding:ie src in
   let e, first = match oe with
@@ -203,12 +204,14 @@ let trip_ inf nln ie oe src dst =
   loop d e first; close_src src
 
 let trip_unix inf usize nln ie oe fdi fdo =
-  let malformed = log_malformed inf in
+  let malformed  d v e =
+    log_malformed inf d v; ignore (Uutf.encode e (`Uchar Uutf.u_rep))
+  in
   let rec loop fdi fdo ds es d e = function
   | `Uchar _ as v ->
       encode_unix fdo es e v; loop fdi fdo ds es d e (Uutf.decode d)
   | `End -> encode_unix fdo es e `End
-  | `Malformed _ as v -> malformed d v; loop fdi fdo ds es d e (Uutf.decode d)
+  | `Malformed _ as v -> malformed d v e; loop fdi fdo ds es d e (Uutf.decode d)
   | `Await ->
       let rc = unix_read fdi ds 0 (String.length ds) in
       Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e (Uutf.decode d)
@@ -331,12 +334,14 @@ let file =
   Arg.(value & pos 0 string "-" & info [] ~doc ~docv:"FILE")
 
 let cmd =
-  let doc = "Output the input text as Unicode scalar values, one per line,
-             in the US-ASCII charset with their position
-             (see POSITION INFORMATION for more details)."
+  let doc = "Output the input text as Unicode scalar values or malformed
+             sequences, one per line, in the US-ASCII charset with their
+             position (see POSITION INFORMATION for more details)."
   in
   let ascii = `Ascii, Arg.info ["a"; "ascii"] ~doc in
-  let doc = "Only guess the encoding." in
+  let doc = "Only guess an UTF encoding. The result of a guess can only be
+             UTF-8 or UTF-16{LE,BE}."
+  in
   let guess = `Guess, Arg.info ["g"; "guess"] ~doc in
   let doc = "Decode only, no encoding." in
   let dec = `Decode, Arg.info ["decode"] ~doc in
@@ -352,6 +357,8 @@ let cmd =
         to stdout in various ways. If no input encoding is specified,
         it is guessed. If no output encoding is specified, the input
         encoding is used.";
+    `P "Invalid byte sequences in the input are reported on stderr and
+        replaced by the Unicode replacement character (U+FFFD) in the output.";
     `S "POSITION INFORMATION";
     `P "The format for position information is:";
     `P "filename:line.col:(count,byte)";
