@@ -15,7 +15,10 @@ let pp_decode inf d ppf v =
 
 let exec = Filename.basename Sys.executable_name
 let log f = Format.eprintf ("%s: " ^^ f ^^ "@?") exec
-let log_malformed inf d v = log "%a" (pp_decode inf d) v
+
+let input_malformed = ref false
+let log_malformed inf d v =
+  input_malformed := true; log "%a" (pp_decode inf d) v
 
 (* IO tools  *)
 
@@ -77,9 +80,16 @@ let rec encode_unix fd s e v = match Uutf.encode e v with `Ok -> ()
 
 (* Dump *)
 
+let dump_decode inf d v =
+  (match v with `Malformed _ -> input_malformed := true | _ -> ());
+  (pp_decode inf d) Format.std_formatter v
+
+
 let dump_ inf encoding nln src =
   let rec loop inf d = match Uutf.decode d with `Await -> assert false
-  | v -> (pp_decode inf d) Format.std_formatter v; if v <> `End then loop inf d
+  | v ->
+      dump_decode inf d v;
+      if v <> `End then loop inf d
   in
   loop inf (Uutf.decoder ?nln ?encoding src)
 
@@ -88,7 +98,7 @@ let dump_unix inf encoding nln usize fd =
   | `Await ->
       let rc = unix_read fd s 0 (String.length s) in
       Uutf.Manual.src d s 0 rc; loop fd s d
-  | v -> (pp_decode inf d) Format.std_formatter v; if v <> `End then loop fd s d
+  | v -> dump_decode inf d v; if v <> `End then loop fd s d
   in
   loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual)
 
@@ -356,6 +366,11 @@ let cmd =
     `I ("count", "the one-based Unicode scalar value count.");
     `I ("byte", "the zero-based end byte offset of the scalar value
                  in the input stream in hexadecimal.");
+    `S "EXIT STATUS";
+    `P "$(tname) exits with one of the following values:";
+    `I ("0", "no error occured");
+    `I ("1", "a command line parsing error occured");
+    `I ("2", "the input text was malformed");
     `S "BUGS";
     `P "This program is distributed with the Uutf OCaml library.
         See http://erratique.ch/software/uutf for contact
@@ -365,7 +380,9 @@ let cmd =
         ienc $ oenc $ nln $ rseed $ rcount),
   Term.info "utftrip" ~version:"%%VERSION%%" ~doc ~man
 
-let () = match Term.eval cmd with `Error _ -> exit 1 | _ -> exit 0
+let () = match Term.eval cmd with
+| `Error _ -> exit 1
+| _ -> if !input_malformed then exit 2 else exit 0
 
 (*---------------------------------------------------------------------------
    Copyright 2012 Daniel C. Bünzli
