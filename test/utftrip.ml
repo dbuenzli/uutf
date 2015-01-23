@@ -276,7 +276,7 @@ let nln =
   let doc = str "New line normalization to U+000A, must %s. ascii
                  normalizes CR (U+000D) and CRLF (<U+000D, U+000A>). nlf
                  normalizes like ascii plus NEL (U+0085). readline
-                 normalizes like nlf plus FF (U+000C), LS (U+2028),
+                 normalizes like nlf plus FF (U+000C), LS (U+2028) and
                  PS (U+2029)."
       (Arg.doc_alts_enum nln_enum)
   in
@@ -322,25 +322,40 @@ let file =
 
 let cmd =
   let doc = "Output the input text as Unicode scalar values, one per line,
-             in the US-ASCII charset with their position."
+             in the US-ASCII charset with their position
+             (see POSITION INFORMATION for more details)."
   in
   let ascii = `Ascii, Arg.info ["a"; "ascii"] ~doc in
   let doc = "Only guess the encoding." in
   let guess = `Guess, Arg.info ["g"; "guess"] ~doc in
   let doc = "Decode only, no encoding." in
   let dec = `Decode, Arg.info ["decode"] ~doc in
-  let doc = "Encode only (random), no decoding." in
+  let doc = "Encode only (random), no decoding. See option $(b,--rcount)." in
   let enc = `Encode, Arg.info ["encode"] ~doc in
   Arg.(value & vflag `Trip [ascii; guess; dec; enc])
 
 let cmd =
-  let doc = "Recode UTF-{8,16,16LE,16BE} from stdin to stdout." in
+  let doc = "Recode UTF-{8,16,16LE,16BE} and latin1 from stdin to stdout." in
   let man = [
     `S "DESCRIPTION";
     `P "$(tname) inputs Unicode text from stdin and rewrites it
         to stdout in various ways. If no input encoding is specified,
         it is guessed. If no output encoding is specified, the input
         encoding is used.";
+    `S "POSITION INFORMATION";
+    `P "The format for position information is:";
+    `P "filename:line.col:(count,byte)";
+    `I ("line", "one-based line number that increments with each newline.
+        A newline is always determined as being anything that would be
+        normalized by the option `$(b,--nln)=readline`.");
+    `I ("col", "zero-based column number that increment with each new
+        decoded character and zeroes after a newline
+        is decoded. Note that the column number may not correspond to
+        user-perceived columns, as any Unicode scalar value, including
+        combining characters are deemed to have a width of 1.");
+    `I ("count", "the one-based Unicode scalar value count.");
+    `I ("byte", "the zero-based end byte offset of the scalar value
+                 in the input stream in hexadecimal.");
     `S "BUGS";
     `P "This program is distributed with the Uutf OCaml library.
         See http://erratique.ch/software/uutf for contact
