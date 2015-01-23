@@ -10,7 +10,8 @@ let pp_pos ppf d = pp ppf "%d.%d:(%d,%06X) "
   (Uutf.decoder_line d) (Uutf.decoder_col d) (Uutf.decoder_count d)
   (Uutf.decoder_byte_count d)
 
-let pp_decode inf d ppf v = pp ppf "%s:%a%a@\n" inf pp_pos d Uutf.pp_decode v
+let pp_decode inf d ppf v =
+  pp ppf "@[<h>%s:%a%a@]@\n" inf pp_pos d Uutf.pp_decode v
 
 let exec = Filename.basename Sys.executable_name
 let log f = Format.eprintf ("%s: " ^^ f ^^ "@?") exec

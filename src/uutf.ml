@@ -175,10 +175,10 @@ let pp_decode ppf = function
 | `Await -> pp ppf "`Await"
 | `Malformed bs ->
     let l = String.length bs in
-    pp ppf "@[`Malformed @[(";
+    pp ppf "@[`Malformed (";
     if l > 0 then pp ppf "%02X" (Char.code (bs.[0]));
     for i = 1 to l - 1 do pp ppf " %02X" (Char.code (bs.[i])) done;
-    pp ppf ")@]@]"
+    pp ppf ")@]"
 
 type decoder =
   { src : src;                                              (* input source. *)
