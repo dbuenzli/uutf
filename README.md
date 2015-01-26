@@ -42,7 +42,7 @@ is a generated version in the `doc` directory of the distribution.
 Sample programs are located in the `test` directory of the
 distribution. They can be built with:
 
-    ocamlbuild tests.otarget
+    ocamlbuild -use-ocamlfind tests.otarget
 
 The resulting binaries are in `_build/test` :
 
