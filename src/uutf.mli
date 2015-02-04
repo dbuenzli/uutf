@@ -99,9 +99,15 @@ val encoding_to_string : [< decoder_encoding] -> string
 
 (** {1:decode Decode} *)
 
-type src = [ `Channel of in_channel | `String of string | `Manual ]
+type src =
+  [ `Channel of in_channel
+  | `String of string
+  | `Substring of int * int * string
+  | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
-    must provide input with {!Manual.src}. *)
+    must provide input with {!Manual.src}. The arguments of the [`Substring]
+    constructor are the position and the length (i.e., [`Substring (s, p, l)]
+    is similar to [`String (String.sub s p l)]. *)
 
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 (** The type for newline normalizations. The variant argument is the
@@ -365,32 +371,35 @@ module String : sig
   (** The type for character folders. The integer is the index in the
       string where the [`Uchar] or [`Malformed] starts. *)
 
-  val fold_utf_8 : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_8 f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_8 : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_8 f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value} scalar value}
-      and the starting position of the characters in the
-      UTF-8 encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-8 encoded string [s] starting at [pos] and [len] long. The default
+      value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16be : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16be f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16be : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16be f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16BE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16BE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16le : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16le f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16le : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16le f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16LE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16LE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 end
 
 (**  UTF encode characters in OCaml {!Buffer.t} values. *)
