@@ -366,32 +366,35 @@ module String : sig
   (** The type for character folders. The integer is the index in the
       string where the [`Uchar] or [`Malformed] starts. *)
 
-  val fold_utf_8 : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_8 f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_8 : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_8 f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value} scalar value}
-      and the starting position of the characters in the
-      UTF-8 encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-8 encoded string [s] starting at [pos] and [len] long. The default
+      value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16be : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16be f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16be : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16be f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16BE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16BE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16le : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16le f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16le : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16le f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16LE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16LE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 end
 
 (**  UTF encode characters in OCaml {!Buffer.t} values. *)

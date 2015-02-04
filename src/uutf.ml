@@ -701,7 +701,7 @@ module String = struct
   type 'a folder =
     'a -> int -> [ `Uchar of uchar | `Malformed of string ] -> 'a
 
-  let fold_utf_8 f acc s =
+  let fold_utf_8 ?(pos = 0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let need = unsafe_array_get utf_8_len (unsafe_byte s i) in
@@ -710,9 +710,13 @@ module String = struct
       if rem < need then f acc i (malformed s i rem) else
       loop (f acc i (r_utf_8 s i need)) f s (i + need) l
     in
-    loop acc f s 0 (String.length s)
+    let len = match len with
+    | None -> String.length s - pos
+    | Some l -> l
+    in
+    loop acc f s pos len
 
-  let fold_utf_16be f acc s =
+  let fold_utf_16be ?(pos = 0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let rem = l - i in
@@ -723,9 +727,13 @@ module String = struct
           if rem < 4 then f acc i (malformed s i rem)  else
           loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) l
     in
-    loop acc f s 0 (String.length s)
+    let len = match len with
+    | None -> String.length s - pos
+    | Some l -> l
+    in
+    loop acc f s pos len
 
-  let fold_utf_16le f acc s =             (* [fold_utf_16be], bytes swapped. *)
+  let fold_utf_16le ?(pos = 0) ?len f acc s = (* [fold_utf_16be], bytes swapped. *)
     let rec loop acc f s i l =
       if i = l then acc else
       let rem = l - i in
@@ -736,7 +744,11 @@ module String = struct
           if rem < 4 then f acc i (malformed s i rem)  else
           loop (f acc i (r_utf_16_lo hi s (i + 3) (i + 2))) f s (i + 4) l
     in
-    loop acc f s 0 (String.length s)
+    let len = match len with
+    | None -> String.length s - pos
+    | Some l -> l
+    in
+    loop acc f s pos len
 end
 
 module Buffer = struct
