@@ -168,7 +168,7 @@ let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
 type src =
   [ `Channel of in_channel
   | `String of string
-  | `Substring of string * int * int
+  | `Substring of int * int * string
   | `Manual ]
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
@@ -496,7 +496,7 @@ let decoder ?nln ?encoding src =
   | `Manual -> "", 1, 0                            (* implies src_rem d = 0. *)
   | `Channel _ -> String.create io_buffer_size, 1, 0                (* idem. *)
   | `String s -> s, 0, String.length s - 1
-  | `Substring (s, pos, len) -> s, pos, len
+  | `Substring (pos, len, s) -> s, pos, len
   in
   { src = (src :> src); encoding; nln = (nln :> nln option); nl;
     i; i_pos; i_max; t = String.create 4; t_len = 0; t_need = 0;

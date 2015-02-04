@@ -102,7 +102,7 @@ val encoding_to_string : [< decoder_encoding] -> string
 type src =
   [ `Channel of in_channel
   | `String of string
-  | `Substring of string * int * int
+  | `Substring of int * int * string
   | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
     must provide input with {!Manual.src}. The arguments of the [`Substring]
