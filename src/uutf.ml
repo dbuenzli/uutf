@@ -106,7 +106,7 @@ let r_utf_8 s j l =
       let b2 = unsafe_byte s (j + 2) in
       let c = `Uchar (((b0 land 0x0F) lsl 12) lor
                       ((b1 land 0x3F) lsl 6) lor
-          (b2 land 0x3F))
+                      (b2 land 0x3F))
       in
       if b2 lsr 6 != 0b10 then malformed s j l else
       begin match b0 with
@@ -119,7 +119,7 @@ let r_utf_8 s j l =
       let b2 = unsafe_byte s (j + 2) in let b3 = unsafe_byte s (j + 3) in
       let c = `Uchar (((b0 land 0x07) lsl 18) lor
                       ((b1 land 0x3F) lsl 12) lor
-          ((b2 land 0x3F) lsl 6) lor
+                      ((b2 land 0x3F) lsl 6) lor
                       (b3 land 0x3F))
       in
       if b3 lsr 6 != 0b10 || b2 lsr 6 != 0b10 then malformed s j l else
@@ -166,10 +166,10 @@ let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
 (* Decode *)
 
 type src =
-    [ `Channel of in_channel
-    | `String of string
-	| `Substring of string * int * int
-    | `Manual ]
+  [ `Channel of in_channel
+  | `String of string
+  | `Substring of string * int * int
+  | `Manual ]
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
 
@@ -395,9 +395,9 @@ let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
       match r_utf_16 d.t j0 j1 with
       | `Malformed _ | `Uchar _ as v -> ret (b3 t_decode_utf_16) v 2 d
       | `Hi hi ->
-        if d.t_len < 3
-        then ret decode_utf_16 (malformed_pair be hi "" 0 0) d.t_len d
-        else (b3 (t_decode_utf_16_lo hi)) d
+          if d.t_len < 3
+          then ret decode_utf_16 (malformed_pair be hi "" 0 0) d.t_len d
+          else (b3 (t_decode_utf_16_lo hi)) d
 
 let guess_encoding d =                  (* guess encoding and start decoder. *)
   let setup d = match r_encoding d.t 0 d.t_len with
@@ -569,29 +569,29 @@ let rec encode_utf_8 e v =
   | `Uchar u as v ->
       let rem = o_rem e in
       if u <= 0x007F then
-      if rem < 1 then flush (fun e -> encode_utf_8 e v) e else
-      (unsafe_set_byte e.o e.o_pos u; e.o_pos <- e.o_pos + 1; k e)
+        if rem < 1 then flush (fun e -> encode_utf_8 e v) e else
+        (unsafe_set_byte e.o e.o_pos u; e.o_pos <- e.o_pos + 1; k e)
       else if u <= 0x07FF then
-      begin
-        let s, j, k =
-          if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
-          let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
-        in
-        unsafe_set_byte s j (0xC0 lor (u lsr 6));
-        unsafe_set_byte s (j + 1) (0x80 lor (u land 0x3F));
-        k e
-      end
+        begin
+          let s, j, k =
+            if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
+            let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
+          in
+          unsafe_set_byte s j (0xC0 lor (u lsr 6));
+          unsafe_set_byte s (j + 1) (0x80 lor (u land 0x3F));
+          k e
+        end
       else if u <= 0xFFFF then
-      begin
-        let s, j, k =
-          if rem < 3 then (t_range e 2; e.t, 0, t_flush k) else
-          let j = e.o_pos in (e.o_pos <- e.o_pos + 3; e.o, j, k)
-        in
-        unsafe_set_byte s j (0xE0 lor (u lsr 12));
-        unsafe_set_byte s (j + 1) (0x80 lor ((u lsr 6) land 0x3F));
-        unsafe_set_byte s (j + 2) (0x80 lor (u land 0x3F));
-        k e
-      end
+        begin
+          let s, j, k =
+            if rem < 3 then (t_range e 2; e.t, 0, t_flush k) else
+            let j = e.o_pos in (e.o_pos <- e.o_pos + 3; e.o, j, k)
+          in
+          unsafe_set_byte s j (0xE0 lor (u lsr 12));
+          unsafe_set_byte s (j + 1) (0x80 lor ((u lsr 6) land 0x3F));
+          unsafe_set_byte s (j + 2) (0x80 lor (u land 0x3F));
+          k e
+        end
       else
       begin
         let s, j, k =
@@ -613,15 +613,15 @@ let rec encode_utf_16be e v =
   | `Uchar u ->
       let rem = o_rem e in
       if u < 0x10000 then
-      begin
-        let s, j, k =
-          if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
-          let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
-        in
-        unsafe_set_byte s j (u lsr 8);
-        unsafe_set_byte s (j + 1) (u land 0xFF);
-        k e
-      end else begin
+        begin
+          let s, j, k =
+            if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
+            let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
+          in
+          unsafe_set_byte s j (u lsr 8);
+          unsafe_set_byte s (j + 1) (u land 0xFF);
+          k e
+        end else begin
         let s, j, k =
           if rem < 4 then (t_range e 3; e.t, 0, t_flush k) else
           let j = e.o_pos in (e.o_pos <- e.o_pos + 4; e.o, j, k)
@@ -642,32 +642,32 @@ let rec encode_utf_16le e v =         (* encode_uft_16be with bytes swapped. *)
   | `Await -> k e
   | `End -> flush k e
   | `Uchar u ->
-    let rem = o_rem e in
-    if u < 0x10000 then
-    begin
-      let s, j, k =
-        if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
-        let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
-      in
-      unsafe_set_byte s j (u land 0xFF);
-      unsafe_set_byte s (j + 1) (u lsr 8);
-      k e
-    end
-    else
-    begin
-      let s, j, k =
-        if rem < 4 then (t_range e 3; e.t, 0, t_flush k) else
-        let j = e.o_pos in (e.o_pos <- e.o_pos + 4; e.o, j, k)
-      in
-      let u' = u - 0x10000 in
-      let hi = (0xD800 lor (u' lsr 10)) in
-      let lo = (0xDC00 lor (u' land 0x3FF)) in
-      unsafe_set_byte s j (hi land 0xFF);
-      unsafe_set_byte s (j + 1) (hi lsr 8);
-      unsafe_set_byte s (j + 2) (lo land 0xFF);
-      unsafe_set_byte s (j + 3) (lo lsr 8);
-      k e
-    end
+      let rem = o_rem e in
+      if u < 0x10000 then
+        begin
+          let s, j, k =
+            if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
+            let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
+          in
+          unsafe_set_byte s j (u land 0xFF);
+          unsafe_set_byte s (j + 1) (u lsr 8);
+          k e
+        end
+      else
+      begin
+        let s, j, k =
+          if rem < 4 then (t_range e 3; e.t, 0, t_flush k) else
+          let j = e.o_pos in (e.o_pos <- e.o_pos + 4; e.o, j, k)
+        in
+        let u' = u - 0x10000 in
+        let hi = (0xD800 lor (u' lsr 10)) in
+        let lo = (0xDC00 lor (u' land 0x3FF)) in
+        unsafe_set_byte s j (hi land 0xFF);
+        unsafe_set_byte s (j + 1) (hi lsr 8);
+        unsafe_set_byte s (j + 2) (lo land 0xFF);
+        unsafe_set_byte s (j + 3) (lo lsr 8);
+        k e
+      end
 
 let encode_fun = function
 | `UTF_8 -> encode_utf_8
@@ -707,7 +707,7 @@ module String = struct
   type 'a folder =
     'a -> int -> [ `Uchar of uchar | `Malformed of string ] -> 'a
 
-  let fold_utf_8 f acc s ?(pos=0) ?len () =
+  let fold_utf_8 ?(pos=0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let need = unsafe_array_get utf_8_len (unsafe_byte s i) in
@@ -717,12 +717,12 @@ module String = struct
       loop (f acc i (r_utf_8 s i need)) f s (i + need) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 
-  let fold_utf_16be f acc s ?(pos=0) ?len () =
+  let fold_utf_16be ?(pos=0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let rem = l - i in
@@ -734,13 +734,12 @@ module String = struct
           loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 
-  let fold_utf_16le f acc s ?(pos=0) ?len () =
-                                          (* [fold_utf_16be], bytes swapped. *)
+  let fold_utf_16le ?(pos=0) ?len f acc s = (* [fold_utf_16be], bytes swapped. *)
     let rec loop acc f s i l =
       if i = l then acc else
       let rem = l - i in
@@ -752,8 +751,8 @@ module String = struct
           loop (f acc i (r_utf_16_lo hi s (i + 3) (i + 2))) f s (i + 4) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 end
@@ -762,14 +761,14 @@ module Buffer = struct
   let add_utf_8 b u =
     let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u <= 0x007F then
-    (w u)
+      (w u)
     else if u <= 0x07FF then
-    (w (0xC0 lor (u lsr 6));
-     w (0x80 lor (u land 0x3F)))
+      (w (0xC0 lor (u lsr 6));
+       w (0x80 lor (u land 0x3F)))
     else if u <= 0xFFFF then
-    (w (0xE0 lor (u lsr 12));
-     w (0x80 lor ((u lsr 6) land 0x3F));
-     w (0x80 lor (u land 0x3F)))
+      (w (0xE0 lor (u lsr 12));
+       w (0x80 lor ((u lsr 6) land 0x3F));
+       w (0x80 lor (u land 0x3F)))
     else
     (w (0xF0 lor (u lsr 18));
      w (0x80 lor ((u lsr 12) land 0x3F));
