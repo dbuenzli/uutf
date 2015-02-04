@@ -30,13 +30,13 @@ let codec_test () =
       let spos = ref 0 in
       let e = Uutf.encoder encoding `Manual in
       let rec encode e v = match Uutf.encode e v with `Ok -> ()
-      | `Partial ->
-          let brem = String.length s - !spos in
-          let drem = Uutf.Manual.dst_rem e in
-          let bsize = min bsize brem in
-          Uutf.Manual.dst e s !spos bsize;
-          spos := !spos + bsize - drem;
-          encode e `Await
+                                                    | `Partial ->
+                                                        let brem = String.length s - !spos in
+                                                        let drem = Uutf.Manual.dst_rem e in
+                                                        let bsize = min bsize brem in
+                                                        Uutf.Manual.dst e s !spos bsize;
+                                                        spos := !spos + bsize - drem;
+                                                        encode e `Await
       in
       let encode_u u = encode e (`Uchar u) in
       iter_uchars encode_u; encode e `End;
@@ -86,7 +86,7 @@ let buffer_string_codec_test () =
     | `Uchar u when u = uchar -> uchar_succ uchar
     | v -> fail_decode (`Uchar uchar) v
     in
-    ignore (decode check 0x0000 s)
+    ignore (decode ?pos:None ?len:None check 0x0000 s)
   in
   let b = Buffer.create (4 * 0x10FFFF) in
   codec_uchars `UTF_8 Uutf.Buffer.add_utf_8 Uutf.String.fold_utf_8 b;
@@ -146,7 +146,7 @@ let guess_test () =
     test_seq seq d;
     let guess = Uutf.decoder_encoding d in
     if guess <> enc then fail "expected encoding: %s guessed: %s"
-      (Uutf.encoding_to_string enc) (Uutf.encoding_to_string guess);
+        (Uutf.encoding_to_string enc) (Uutf.encoding_to_string guess);
     let rem_bom = Uutf.decoder_removed_bom d in
     if rem_bom <> removed_bom then
       fail "expected removed bom: %b found: %b" removed_bom rem_bom
@@ -174,12 +174,12 @@ let guess_test () =
   test ("\xFE\xFF\xDB\xFF\xDF\xFF\x00\x0A", `UTF_16BE, true,
         [`Uchar 0x10FFFF; `Uchar u_nl;]);
   test ("\xFE\xFF\xDB\xFF\x00\x0A\x00\x0A", `UTF_16BE, true,
-       [`Malformed "\xDB\xFF\x00\x0A"; `Uchar u_nl;]);
+        [`Malformed "\xDB\xFF\x00\x0A"; `Uchar u_nl;]);
   test ("\xFE\xFF\xDB\xFF\xDF", `UTF_16BE, true,
         [`Malformed "\xDB\xFF\xDF";]);
   test ("\x80\x81\xDB\xFF\xDF\xFF\xFE\xFF\xDF\xFF\xDB\xFF", `UTF_16BE, false,
         [`Uchar 0x8081; `Uchar 0x10FFFF; `Uchar Uutf.u_bom;
-          `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF"]);
+         `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF"]);
   test ("\x80\x81\xDF\xFF\xDB\xFF\xFE", `UTF_16BE, false,
         [`Uchar 0x8081; `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF\xFE";]);
   test ("\x00\x0A", `UTF_16BE, false, [`Uchar u_nl]);
@@ -196,7 +196,7 @@ let guess_test () =
   test ("\xFF\xFE\xFF\xDB\xFF\xDF\x0A\x00", `UTF_16LE, true,
         [`Uchar 0x10FFFF; `Uchar u_nl;]);
   test ("\xFF\xFE\xFF\xDB\x0A\x00\x0A\x00", `UTF_16LE, true,
-       [`Malformed "\xFF\xDB\x0A\x00"; `Uchar u_nl;]);
+        [`Malformed "\xFF\xDB\x0A\x00"; `Uchar u_nl;]);
   test ("\xFF\xFE\xFF\xDB\xDF", `UTF_16LE, true,
         [`Malformed "\xFF\xDB\xDF";]);
   test ("\x0A\x00", `UTF_16LE, false, [`Uchar u_nl]);
@@ -302,24 +302,24 @@ let utf8_decode_test bmap =
       String.unsafe_set s2 0 (Char.unsafe_chr b0);
       for b1 = 0x00 to 0xFF do
         String.unsafe_set s2 1 (Char.unsafe_chr b1);
-	if test s2 = `Decoded then ()
+        if test s2 = `Decoded then ()
         else begin
           String.unsafe_set s3 0 (Char.unsafe_chr b0);
           String.unsafe_set s3 1 (Char.unsafe_chr b1);
-	  for b2 = 0x00 to 0xFF do
+          for b2 = 0x00 to 0xFF do
             String.unsafe_set s3 2 (Char.unsafe_chr b2);
-	    if test s3 = `Decoded then ()
+            if test s3 = `Decoded then ()
             else begin
               String.unsafe_set s4 0 (Char.unsafe_chr b0);
               String.unsafe_set s4 1 (Char.unsafe_chr b1);
               String.unsafe_set s4 2 (Char.unsafe_chr b2);
-	      for b3 = 0x00 to 0xFF do
+              for b3 = 0x00 to 0xFF do
                 String.unsafe_set s4 3 (Char.unsafe_chr b3);
-		ignore (test s4)
-	      done;
-	    end
-	  done;
-	end
+                ignore (test s4)
+              done;
+            end
+          done;
+        end
       done;
     end
   done
@@ -327,7 +327,7 @@ let utf8_decode_test bmap =
 let utf8_test () =                             (* Proof by exhaustiveness... *)
   let umap, bmap = utf8_maps () in
   utf8_encode_test umap;
-(*  utf8_decode_test bmap; *)                        (* too long, commented. *)
+  (*  utf8_decode_test bmap; *)                        (* too long, commented. *)
   ()
 
 let is_uchar_test () =
@@ -335,8 +335,8 @@ let is_uchar_test () =
   let test cp expected =
     let is = Uutf.is_uchar cp in
     if is <> expected then
-    fail "Uutf.is_uchar %a = %b, expected %b"
-      Uutf.pp_decode (`Uchar cp) is expected
+      fail "Uutf.is_uchar %a = %b, expected %b"
+        Uutf.pp_decode (`Uchar cp) is expected
   in
   for cp = 0x0000 to 0xD7FF do test cp true done;
   for cp = 0xD800 to 0xDFFF do test cp false done;

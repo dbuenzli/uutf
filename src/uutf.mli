@@ -6,40 +6,40 @@
 
 (** Non-blocking streaming Unicode codec.
 
-  [Uutf] is a non-blocking streaming codec to {{:#decode}decode} and
-  {{:#encode}encode} the {{:http://www.ietf.org/rfc/rfc3629.txt}
-  UTF-8}, {{:http://www.ietf.org/rfc/rfc2781.txt} UTF-16}, UTF-16LE
-  and UTF-16BE encoding schemes. It can efficiently work character by
-  character without blocking on IO. Decoders perform
-  character position tracking and support {{!nln}newline normalization}.
+    [Uutf] is a non-blocking streaming codec to {{:#decode}decode} and
+    {{:#encode}encode} the {{:http://www.ietf.org/rfc/rfc3629.txt}
+    UTF-8}, {{:http://www.ietf.org/rfc/rfc2781.txt} UTF-16}, UTF-16LE
+    and UTF-16BE encoding schemes. It can efficiently work character by
+    character without blocking on IO. Decoders perform
+    character position tracking and support {{!nln}newline normalization}.
 
-  Functions are also provided to {{!String} fold over} the
-  characters of UTF encoded OCaml string values and to
-  {{!Buffer}directly encode} characters in OCaml {!Buffer.t}
-  values.
+    Functions are also provided to {{!String} fold over} the
+    characters of UTF encoded OCaml string values and to
+    {{!Buffer}directly encode} characters in OCaml {!Buffer.t}
+    values.
 
-  See {{:#examples}examples} of use.
+    See {{:#examples}examples} of use.
 
-  {e Release %%VERSION%% - %%MAINTAINER%% }
+    {e Release %%VERSION%% - %%MAINTAINER%% }
 
-  {3 References}
+    {3 References}
     {ul
     {- The Unicode Consortium.
     {e {{:http://www.unicode.org/versions/latest}The Unicode Standard}}.
     (latest version)}}
 *)
 
-  (** {1:basic Unicode characters}
+(** {1:basic Unicode characters}
 
-      [Uutf] uses the term character for a Unicode
-      {{:http://unicode.org/glossary/#unicode_scalar_value} scalar
-      value} which is an integer value in the ranges [0x0000]
-      ... [0xD7FF] and [0xE000] ... [0x10FFFF]. This should not be
-      confused with a Unicode
-      {{:http://unicode.org/glossary/#code_point}code point}, which is
-      a scalar value or a (textually meaningless)
-      {{:http://unicode.org/glossary/#surrogate_code_point}surrogate
-      code point}. *)
+    [Uutf] uses the term character for a Unicode
+    {{:http://unicode.org/glossary/#unicode_scalar_value} scalar
+    value} which is an integer value in the ranges [0x0000]
+    ... [0xD7FF] and [0xE000] ... [0x10FFFF]. This should not be
+    confused with a Unicode
+    {{:http://unicode.org/glossary/#code_point}code point}, which is
+    a scalar value or a (textually meaningless)
+    {{:http://unicode.org/glossary/#surrogate_code_point}surrogate
+    code point}. *)
 
 type uchar = int
 (** The type for Unicode characters. Any value of this type returned
@@ -99,9 +99,15 @@ val encoding_to_string : [< decoder_encoding] -> string
 
 (** {1:decode Decode} *)
 
-type src = [ `Channel of in_channel | `String of string | `Manual ]
+type src =
+  [ `Channel of in_channel
+  | `String of string
+  | `Substring of int * int * string
+  | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
-    must provide input with {!Manual.src}. *)
+    must provide input with {!Manual.src}. The arguments of the [`Substring]
+    constructor are the position and the length (i.e., [`Substring (s, p, l)]
+    is similar to [`String (String.sub s p l)]. *)
 
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 (** The type for newline normalizations. The variant argument is the
@@ -155,23 +161,23 @@ val decoder : ?nln:[< nln] -> ?encoding:[< decoder_encoding] -> [< src] ->
     can only be [`UTF_8], [`UTF_16BE] or [`UTF_16LE]. The heuristic
     looks at the first three bytes of input (or less if impossible)
     and takes the {e first} matching byte pattern in the table below.
-{[
-xx = any byte
-.. = any byte or no byte (input too small)
-pp = positive byte
-uu = valid UTF-8 first byte
+    {[
+      xx = any byte
+        .. = any byte or no byte (input too small)
+        pp = positive byte
+                           uu = valid UTF-8 first byte
 
-Bytes    | Guess     | Rationale
----------+-----------+-----------------------------------------------
-EF BB BF | `UTF_8    | UTF-8 BOM
-FE FF .. | `UTF_16BE | UTF-16BE BOM
-FF FE .. | `UTF_16LE | UTF-16LE BOM
-00 pp .. | `UTF_16BE | ASCII UTF-16BE and U+0000 is often forbidden
-pp 00 .. | `UTF_16LE | ASCII UTF-16LE and U+0000 is often forbidden
-uu .. .. | `UTF_8    | ASCII UTF-8 or valid UTF-8 first byte.
-xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
-.. .. .. | `UTF_8    | Single malformed UTF-8 byte or no input.
-]}
+                                  Bytes    | Guess     | Rationale
+                                                         ---------+-----------+-----------------------------------------------
+                                                         EF BB BF | `UTF_8    | UTF-8 BOM
+                                                                                  FE FF .. | `UTF_16BE | UTF-16BE BOM
+                                                                                                           FF FE .. | `UTF_16LE | UTF-16LE BOM
+                                                                                                                                    00 pp .. | `UTF_16BE | ASCII UTF-16BE and U+0000 is often forbidden
+                                                                                                                                                                                pp 00 .. | `UTF_16LE | ASCII UTF-16LE and U+0000 is often forbidden
+                                                                                                                                                                                                                            uu .. .. | `UTF_8    | ASCII UTF-8 or valid UTF-8 first byte.
+                                                                                                                                                                                                                                                                                      xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
+                                                                                                                                                                                                                                                                                                                                              .. .. .. | `UTF_8    | Single malformed UTF-8 byte or no input.
+    ]}
     This heuristic is compatible both with BOM based
     recognitition and
     {{:http://tools.ietf.org/html/rfc4627#section-3}JSON-like encoding
@@ -348,49 +354,52 @@ end
 (** Fold over the characters of UTF encoded OCaml [string] values. *)
 module String : sig
 
-(** {1 Encoding guess} *)
+  (** {1 Encoding guess} *)
 
   val encoding_guess : string -> [ `UTF_8 | `UTF_16BE | `UTF_16LE ] * bool
   (** [encoding_guess s] is the encoding guessed for [s] coupled with
       [true] iff there's an initial
       {{:http://unicode.org/glossary/#byte_order_mark}BOM}. *)
 
-(** {1 String folders}
+  (** {1 String folders}
 
-    {b Note.} Initial {{:http://unicode.org/glossary/#byte_order_mark}BOM}s
-    are also folded over. *)
+      {b Note.} Initial {{:http://unicode.org/glossary/#byte_order_mark}BOM}s
+      are also folded over. *)
 
   type 'a folder = 'a -> int -> [ `Uchar of uchar | `Malformed of string ] ->
     'a
   (** The type for character folders. The integer is the index in the
       string where the [`Uchar] or [`Malformed] starts. *)
 
-  val fold_utf_8 : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_8 f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_8 : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_8 f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value} scalar value}
-      and the starting position of the characters in the
-      UTF-8 encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-8 encoded string [s] starting at [pos] and [len] long. The default
+      value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16be : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16be f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16be : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16be f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16BE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16BE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 
-  val fold_utf_16le : 'a folder -> 'a -> string -> 'a
-  (** [fold_utf_16le f a s] is
-      [f (] ... [(f (f a 0 u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
+  val fold_utf_16le : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
+  (** [fold_utf_16le f a s ?pos ?len ()] is
+      [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
       where [u]{_i}, [j]{_i} are the Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the
-      UTF-16LE encoded string [s]. *)
+      and the starting position of the characters in the section of the
+      UTF-16LE encoded string [s] starting at [pos] and [len] long. The
+      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
 end
 
 (**  UTF encode characters in OCaml {!Buffer.t} values. *)
@@ -428,40 +437,40 @@ end
     recommendation R4 for a [readline] function in section 5.8 of
     Unicode 6.1.0. If a decoding error occurs we silently replace the
     malformed sequence by the replacement character {!u_rep} and continue.
-{[let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
-  let rec loop d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop d buf acc
-  | `End -> List.rev (Buffer.contents buf :: acc)
-  | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop d buf acc
-  | `Await -> assert false
-  in
-  let nln = `Readline 0x000A in
-  loop (Uutf.decoder ~nln ?encoding src) (Buffer.create 512) []]}
-
-  Using the [`Manual] interface, [lines_fd] does the same but on a Unix file
-  descriptor.
-{[let lines_fd ?encoding (fd : Unix.file_descr) =
-  let rec loop fd s d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop fd s d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
-  | `End -> List.rev (Buffer.contents buf :: acc)
-  | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop fd s d buf acc
-  | `Await ->
-      let rec unix_read fd s j l = try Unix.read fd s j l with
-      | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
+    {[let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
+      let rec loop d buf acc = match Uutf.decode d with
+      | `Uchar 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop d buf (line :: acc)
+      | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop d buf acc
+      | `End -> List.rev (Buffer.contents buf :: acc)
+      | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop d buf acc
+      | `Await -> assert false
       in
-      let rc = unix_read fd s 0 (String.length s) in
-      Uutf.Manual.src d s 0 rc; loop fd s d buf acc
-  in
-  let s = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let nln = `Readline 0x000A in
-  loop fd s (Uutf.decoder ~nln ?encoding `Manual) (Buffer.create 512) []
-]}
+      let nln = `Readline 0x000A in
+      loop (Uutf.decoder ~nln ?encoding src) (Buffer.create 512) []]}
+
+    Using the [`Manual] interface, [lines_fd] does the same but on a Unix file
+    descriptor.
+    {[let lines_fd ?encoding (fd : Unix.file_descr) =
+      let rec loop fd s d buf acc = match Uutf.decode d with
+      | `Uchar 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop fd s d buf (line :: acc)
+      | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
+      | `End -> List.rev (Buffer.contents buf :: acc)
+      | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop fd s d buf acc
+      | `Await ->
+          let rec unix_read fd s j l = try Unix.read fd s j l with
+          | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
+          in
+          let rc = unix_read fd s 0 (String.length s) in
+          Uutf.Manual.src d s 0 rc; loop fd s d buf acc
+      in
+      let s = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+      let nln = `Readline 0x000A in
+      loop fd s (Uutf.decoder ~nln ?encoding `Manual) (Buffer.create 512) []
+    ]}
 
     {2:recode Recode}
 
@@ -473,55 +482,55 @@ end
     {{:http://unicode.org/glossary/#byte_order_mark}BOM} to [dst],
     recoding will thus loose the initial BOM [src] may have. Whether
     this is a problem or not depends on the context.
-{[let recode ?nln ?encoding out_encoding
-    (src : [`Channel of in_channel | `String of string])
-    (dst : [`Channel of out_channel | `Buffer of Buffer.t])
-  =
-  let rec loop d e = match Uutf.decode d with
-  | `Uchar _ as u -> ignore (Uutf.encode e u); loop d e
-  | `End -> ignore (Uutf.encode e `End)
-  | `Malformed _ -> ignore (Uutf.encode e (`Uchar Uutf.u_rep)); loop d e
-  | `Await -> assert false
-  in
-  let d = Uutf.decoder ?nln ?encoding src in
-  let e = Uutf.encoder out_encoding dst in
-  loop d e]}
-  Using the [`Manual] interface, [recode_fd] does the same but between
-  Unix file descriptors.
-{[let recode_fd ?nln ?encoding out_encoding
-    (fdi : Unix.file_descr)
-    (fdo : Unix.file_descr)
-  =
-  let rec encode fd s e v = match Uutf.encode e v with `Ok -> ()
-  | `Partial ->
-      let rec unix_write fd s j l =
-        let rec write fd s j l = try Unix.single_write fd s j l with
-        | Unix.Unix_error (Unix.EINTR, _, _) -> write fd s j l
-        in
-        let wc = write fd s j l in
-        if wc < l then unix_write fd s (j + wc) (l - wc) else ()
+    {[let recode ?nln ?encoding out_encoding
+        (src : [`Channel of in_channel | `String of string])
+        (dst : [`Channel of out_channel | `Buffer of Buffer.t])
+      =
+      let rec loop d e = match Uutf.decode d with
+      | `Uchar _ as u -> ignore (Uutf.encode e u); loop d e
+      | `End -> ignore (Uutf.encode e `End)
+      | `Malformed _ -> ignore (Uutf.encode e (`Uchar Uutf.u_rep)); loop d e
+      | `Await -> assert false
       in
-      unix_write fd s 0 (String.length s - Uutf.Manual.dst_rem e);
-      Uutf.Manual.dst e s 0 (String.length s);
-      encode fd s e `Await
-  in
-  let rec loop fdi fdo ds es d e = match Uutf.decode d with
-  | `Uchar _ as u -> encode fdo es e u; loop fdi fdo ds es d e
-  | `End -> encode fdo es e `End
-  | `Malformed _ -> encode fdo es e (`Uchar Uutf.u_rep); loop fdi fdo ds es d e
-  | `Await ->
-      let rec unix_read fd s j l = try Unix.read fd s j l with
-      | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
+      let d = Uutf.decoder ?nln ?encoding src in
+      let e = Uutf.encoder out_encoding dst in
+      loop d e]}
+    Using the [`Manual] interface, [recode_fd] does the same but between
+    Unix file descriptors.
+    {[let recode_fd ?nln ?encoding out_encoding
+        (fdi : Unix.file_descr)
+        (fdo : Unix.file_descr)
+      =
+      let rec encode fd s e v = match Uutf.encode e v with `Ok -> ()
+                                                         | `Partial ->
+                                                             let rec unix_write fd s j l =
+                                                               let rec write fd s j l = try Unix.single_write fd s j l with
+                                                               | Unix.Unix_error (Unix.EINTR, _, _) -> write fd s j l
+                                                               in
+                                                               let wc = write fd s j l in
+                                                               if wc < l then unix_write fd s (j + wc) (l - wc) else ()
+                                                             in
+                                                             unix_write fd s 0 (String.length s - Uutf.Manual.dst_rem e);
+                                                             Uutf.Manual.dst e s 0 (String.length s);
+                                                             encode fd s e `Await
       in
-      let rc = unix_read fdi ds 0 (String.length ds) in
-      Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e
-  in
-  let ds = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let es = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let d = Uutf.decoder ?nln ?encoding `Manual in
-  let e = Uutf.encoder out_encoding `Manual in
-  Uutf.Manual.dst e es 0 (String.length es);
-  loop fdi fdo ds es d e]}
+      let rec loop fdi fdo ds es d e = match Uutf.decode d with
+      | `Uchar _ as u -> encode fdo es e u; loop fdi fdo ds es d e
+      | `End -> encode fdo es e `End
+      | `Malformed _ -> encode fdo es e (`Uchar Uutf.u_rep); loop fdi fdo ds es d e
+      | `Await ->
+          let rec unix_read fd s j l = try Unix.read fd s j l with
+          | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
+          in
+          let rc = unix_read fdi ds 0 (String.length ds) in
+          Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e
+      in
+      let ds = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+      let es = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+      let d = Uutf.decoder ?nln ?encoding `Manual in
+      let e = Uutf.encoder out_encoding `Manual in
+      Uutf.Manual.dst e es 0 (String.length es);
+      loop fdi fdo ds es d e]}
 *)
 
 (*---------------------------------------------------------------------------
