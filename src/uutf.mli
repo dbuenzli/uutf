@@ -106,7 +106,7 @@ type src =
   | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
     must provide input with {!Manual.src}. The arguments of the [`Substring]
-    constructor are the position and the length (i.e., [`Substring (s, p, l)]
+    constructor are the position and the length (i.e., [`Substring (p, l, s)]
     is similar to [`String (String.sub s p l)]. *)
 
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
