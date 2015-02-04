@@ -76,7 +76,7 @@ let codec_test () =
   test `UTF_8; test `UTF_16BE; test `UTF_16LE
 
 let buffer_string_codec_test () =
-  let codec_uchars encoding encode decode b =
+  let codec_uchars encoding encode (decode: Uutf.uchar Uutf.String.folder -> Uutf.uchar -> string -> ?pos:int -> ?len:int -> unit -> Uutf.uchar) b =
     log "Buffer/String codec every unicode scalar value in %s.\n%!"
       (Uutf.encoding_to_string encoding);
     Buffer.clear b;
@@ -287,7 +287,7 @@ let utf8_decode_test bmap =
   | Not_found -> `Malformed seq
   in
   let test seq =
-    let dec = List.rev (Uutf.String.fold_utf_8 (fun a _ c -> c :: a) [] seq) in
+    let dec = List.rev (Uutf.String.fold_utf_8 (fun a _ c -> c :: a) [] seq ()) in
     match spec seq, dec with
     | `Uchar u, [ `Uchar u' ] when u = u' -> `Decoded
     | `Malformed _, (`Malformed _) :: _ -> `Malformed
