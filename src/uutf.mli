@@ -100,12 +100,13 @@ val encoding_to_string : [< decoder_encoding] -> string
 (** {1:decode Decode} *)
 
 type src =
-    [ `Channel of in_channel
-    | `String of string
-    | `Substring of string * int * int
-    | `Manual ]
+  [ `Channel of in_channel
+  | `String of string
+  | `Substring of int * int* string
+  | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
-    must provide input with {!Manual.src}. *)
+    must provide input with {!Manual.src}. The arguments in [`Substring] are
+    position and length. *)
 
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 (** The type for newline normalizations. The variant argument is the
@@ -369,7 +370,7 @@ module String : sig
   (** The type for character folders. The integer is the index in the
       string where the [`Uchar] or [`Malformed] starts. *)
 
-  val fold_utf_8 : 'a folder -> 'a -> string -> ?pos:int -> ?len:int -> unit -> 'a
+  val fold_utf_8 : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
   (** [fold_utf_8 f a s ?pos ?len ()] is
       [f (] ... [(f (f a j{_0} u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
@@ -383,8 +384,7 @@ module String : sig
       because [pos] is not the byte offset of a character), [`Malformed]
       values are observed. *)
 
-  val fold_utf_16be : 'a folder -> 'a -> string -> ?pos:int -> ?len:int ->
-      unit -> 'a
+  val fold_utf_16be : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16be f a s ?pos ?len ()] is
       [f (] ... [(f (f a j{_0} u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
@@ -398,8 +398,7 @@ module String : sig
       because [pos] is not the byte offset of a character), [`Malformed]
       values are observed. *)
 
-  val fold_utf_16le : 'a folder -> 'a -> string -> ?pos:int -> ?len:int ->
-      unit -> 'a
+  val fold_utf_16le : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16le f a s ?pos ?len ()] is
       [f (] ... [(f (f a j{_0} u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}

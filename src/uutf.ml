@@ -168,7 +168,7 @@ let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
 type src =
     [ `Channel of in_channel
     | `String of string
-	| `Substring of string * int * int
+	| `Substring of int * int * string
     | `Manual ]
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
@@ -496,7 +496,7 @@ let decoder ?nln ?encoding src =
   | `Manual -> "", 1, 0                            (* implies src_rem d = 0. *)
   | `Channel _ -> String.create io_buffer_size, 1, 0                (* idem. *)
   | `String s -> s, 0, String.length s - 1
-  | `Substring (s, pos, len) -> s, pos, len
+  | `Substring (pos, len, s) -> s, pos, len
   in
   { src = (src :> src); encoding; nln = (nln :> nln option); nl;
     i; i_pos; i_max; t = String.create 4; t_len = 0; t_need = 0;
@@ -707,7 +707,7 @@ module String = struct
   type 'a folder =
     'a -> int -> [ `Uchar of uchar | `Malformed of string ] -> 'a
 
-  let fold_utf_8 f acc s ?(pos=0) ?len () =
+  let fold_utf_8 ?(pos=0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let need = unsafe_array_get utf_8_len (unsafe_byte s i) in
@@ -717,12 +717,12 @@ module String = struct
       loop (f acc i (r_utf_8 s i need)) f s (i + need) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 
-  let fold_utf_16be f acc s ?(pos=0) ?len () =
+  let fold_utf_16be ?(pos=0) ?len f acc s =
     let rec loop acc f s i l =
       if i = l then acc else
       let rem = l - i in
@@ -734,12 +734,12 @@ module String = struct
           loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 
-  let fold_utf_16le f acc s ?(pos=0) ?len () =
+  let fold_utf_16le ?(pos=0) ?len f acc s =
                                           (* [fold_utf_16be], bytes swapped. *)
     let rec loop acc f s i l =
       if i = l then acc else
@@ -752,8 +752,8 @@ module String = struct
           loop (f acc i (r_utf_16_lo hi s (i + 3) (i + 2))) f s (i + 4) l
     in
     let len = match len with
-      | None -> String.length s - pos
-      | Some l -> l
+    | None -> String.length s - pos
+    | Some l -> l
     in
     loop acc f s pos len
 end
