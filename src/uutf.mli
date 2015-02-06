@@ -99,15 +99,9 @@ val encoding_to_string : [< decoder_encoding] -> string
 
 (** {1:decode Decode} *)
 
-type src =
-  [ `Channel of in_channel
-  | `String of string
-  | `Substring of int * int * string
-  | `Manual ]
+type src = [ `Channel of in_channel | `String of string | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
-    must provide input with {!Manual.src}. The arguments of the [`Substring]
-    constructor are the position and the length (i.e., [`Substring (p, l, s)]
-    is similar to [`String (String.sub s p l)]. *)
+    must provide input with {!Manual.src}. *)
 
 type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
 (** The type for newline normalizations. The variant argument is the
