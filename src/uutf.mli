@@ -198,11 +198,12 @@ xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
     [Uutf] assumes that each Unicode scalar value has a column width
     of 1. The same assumption may not be made by the display program
     (e.g. for [emacs]' compilation mode you need to set
-    [compilation-error-screen-columns] to [nil]). For implementing
-    more involved column width increments yourself, look into
-    {{:http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c}[wcwidth]} and
+    [compilation-error-screen-columns] to [nil]). The problem is in
+    general difficult to solve without interaction or convention with the
+    display program's rendering engine. Depending on the context better column
+    increments can be implemented by using {!Uucp.Break.tty_width_hint} or
     {{:http://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries}
-    grapheme cluster boundaries}. *)
+    grapheme cluster boundaries} (see {!Uuseg}). *)
 
 val decode : decoder ->
   [ `Await | `Uchar of uchar | `End | `Malformed of string]
