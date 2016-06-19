@@ -12,7 +12,7 @@ OCaml string values and to directly encode characters in OCaml
 Buffer.t values.
 
 Uutf is made of a single, independent, module and distributed under
-the BSD3 license.
+the ISC license.
 
 Home page: http://erratique.ch/software/uutf  
 Contact: Daniel Bünzli `<daniel.buenzl i@erratique.ch>`
