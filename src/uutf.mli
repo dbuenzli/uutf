@@ -20,7 +20,7 @@
 
   See {{:#examples}examples} of use.
 
-  {e Release %%VERSION%% - %%MAINTAINER%% }
+  {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}}
 
   {3 References}
     {ul

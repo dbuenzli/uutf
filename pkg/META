@@ -1,8 +1,7 @@
 version = "%%VERSION%%"
 description = "Non-blocking streaming Unicode codec for OCaml"
+requires = ""
 archive(byte) = "uutf.cma"
-archive(byte, plugin) = "uutf.cma"
 archive(native) = "uutf.cmxa"
-archive(native, plugin) = "uutf.cmxs"
-exists_if = "uutf.cma"
-
+plugin(byte) = "uutf.cma"
+plugin(native) = "uutf.cmxs"
