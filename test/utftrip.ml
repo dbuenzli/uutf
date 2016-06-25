@@ -39,20 +39,20 @@ let string_of_channel use_unix ic =
   let b = Buffer.create unix_buffer_size in
   let input, s =
     if use_unix
-    then unix_read (Unix.descr_of_in_channel ic), String.create unix_buffer_size
-    else input ic, String.create io_buffer_size
+    then unix_read (Unix.descr_of_in_channel ic), Bytes.create unix_buffer_size
+    else input ic, Bytes.create io_buffer_size
   in
   let rec loop b input s =
-    let rc = input s 0 (String.length s) in
+    let rc = input s 0 (Bytes.length s) in
     if rc = 0 then Buffer.contents b else
-    (Buffer.add_substring b s 0 rc; loop b input s)
+    (Buffer.add_substring b (Bytes.unsafe_to_string s) 0 rc; loop b input s)
   in
   loop b input s
 
 let string_to_channel use_unix oc s =
-  if use_unix
-  then unix_write (Unix.descr_of_out_channel oc) s 0 (String.length s)
-  else output_string oc s
+  if not use_unix then output_string oc s else
+  let s = Bytes.unsafe_of_string s in
+  unix_write (Unix.descr_of_out_channel oc) s 0 (Bytes.length s)
 
 let dst_for sout = if sout then `Buffer (Buffer.create 512) else `Channel stdout
 let src_for inf sin use_unix =
@@ -74,8 +74,8 @@ let close_src_unix fd = try if fd <> Unix.stdin then Unix.close fd with
 
 let rec encode_unix fd s e v = match Uutf.encode e v with `Ok -> ()
 | `Partial ->
-    unix_write fd s 0 (String.length s - Uutf.Manual.dst_rem e);
-    Uutf.Manual.dst e s 0 (String.length s);
+    unix_write fd s 0 (Bytes.length s - Uutf.Manual.dst_rem e);
+    Uutf.Manual.dst e s 0 (Bytes.length s);
     encode_unix fd s e `Await
 
 (* Dump *)
@@ -95,11 +95,11 @@ let dump_ inf encoding nln src =
 let dump_unix inf encoding nln usize fd =
   let rec loop fd s d = match Uutf.decode d with
   | `Await ->
-      let rc = unix_read fd s 0 (String.length s) in
+      let rc = unix_read fd s 0 (Bytes.length s) in
       Uutf.Manual.src d s 0 rc; loop fd s d
   | v -> dump_decode inf d v; if v <> `End then loop fd s d
   in
-  loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual)
+  loop fd (Bytes.create usize) (Uutf.decoder ?nln ?encoding `Manual)
 
 let dump inf sin use_unix usize ie nln =
   if sin || not use_unix then dump_ inf ie nln (src_for inf sin use_unix) else
@@ -130,10 +130,10 @@ let decode_unix inf encoding nln usize fd =
   | `End -> ()
   | `Malformed _ as v -> malformed d v; loop fd s d
   | `Await ->
-      let rc = unix_read fd s 0 (String.length s) in
+      let rc = unix_read fd s 0 (Bytes.length s) in
       Uutf.Manual.src d s 0 rc; loop fd s d
   in
-  loop fd (String.create usize) (Uutf.decoder ?nln ?encoding `Manual);
+  loop fd (Bytes.create usize) (Uutf.decoder ?nln ?encoding `Manual);
   close_src_unix fd
 
 let decode inf sin use_unix usize ie nln =
@@ -158,8 +158,8 @@ let encode_f encoding dst =
   fun v -> match Uutf.encode e v with `Ok -> () | `Partial -> assert false
 
 let encode_f_unix usize encoding fd =
-  let e, s = Uutf.encoder encoding `Manual, String.create usize in
-  Uutf.Manual.dst e s 0 (String.length s);
+  let e, s = Uutf.encoder encoding `Manual, Bytes.create usize in
+  Uutf.Manual.dst e s 0 (Bytes.length s);
   encode_unix fd s e
 
 let r_encode sout use_unix usize rseed rcount oe =
@@ -213,16 +213,16 @@ let trip_unix inf usize nln ie oe fdi fdo =
   | `End -> encode_unix fdo es e `End
   | `Malformed _ as v -> malformed d v e; loop fdi fdo ds es d e (Uutf.decode d)
   | `Await ->
-      let rc = unix_read fdi ds 0 (String.length ds) in
+      let rc = unix_read fdi ds 0 (Bytes.length ds) in
       Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e (Uutf.decode d)
   in
-  let d, ds = Uutf.decoder ?nln ?encoding:ie `Manual, String.create usize in
+  let d, ds = Uutf.decoder ?nln ?encoding:ie `Manual, Bytes.create usize in
   let e, es, first = match oe with
-  | Some enc -> Uutf.encoder enc `Manual, String.create usize, (Uutf.decode d)
+  | Some enc -> Uutf.encoder enc `Manual, Bytes.create usize, (Uutf.decode d)
   | None ->
       let rec decode_past_await d = match Uutf.decode d with
       | `Await ->
-          let rc = unix_read fdi ds 0 (String.length ds) in
+          let rc = unix_read fdi ds 0 (Bytes.length ds) in
           Uutf.Manual.src d ds 0 rc; decode_past_await d
       | v -> v
       in
@@ -230,9 +230,9 @@ let trip_unix inf usize nln ie oe fdi fdo =
       let enc = match Uutf.decoder_encoding d with
       | #Uutf.encoding as enc -> enc | `ISO_8859_1 | `US_ASCII -> `UTF_8
       in
-      Uutf.encoder enc `Manual, String.create usize, v
+      Uutf.encoder enc `Manual, Bytes.create usize, v
   in
-  Uutf.Manual.dst e es 0 (String.length es);
+  Uutf.Manual.dst e es 0 (Bytes.length es);
   if (Uutf.encoder_encoding e = `UTF_16 || Uutf.decoder_removed_bom d)
   then encode_unix fdo es e (`Uchar Uutf.u_bom);
   loop fdi fdo ds es d e first; close_src_unix fdi

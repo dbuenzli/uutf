@@ -27,10 +27,10 @@ let lines_fd ?encoding (fd : Unix.file_descr) =
       let rec unix_read fd s j l = try Unix.read fd s j l with
       | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
       in
-      let rc = unix_read fd s 0 (String.length s) in
+      let rc = unix_read fd s 0 (Bytes.length s) in
       Uutf.Manual.src d s 0 rc; loop fd s d buf acc
   in
-  let s = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+  let s = Bytes.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
   let nln = `Readline 0x000A in
   loop fd s (Uutf.decoder ~nln ?encoding `Manual) (Buffer.create 512) []
 
@@ -63,8 +63,8 @@ let recode_fd ?nln ?encoding out_encoding
         let wc = write fd s j l in
         if wc < l then unix_write fd s (j + wc) (l - wc) else ()
       in
-      unix_write fd s 0 (String.length s - Uutf.Manual.dst_rem e);
-      Uutf.Manual.dst e s 0 (String.length s);
+      unix_write fd s 0 (Bytes.length s - Uutf.Manual.dst_rem e);
+      Uutf.Manual.dst e s 0 (Bytes.length s);
       encode fd s e `Await
   in
   let rec loop fdi fdo ds es d e = match Uutf.decode d with
@@ -75,12 +75,12 @@ let recode_fd ?nln ?encoding out_encoding
       let rec unix_read fd s j l = try Unix.read fd s j l with
       | Unix.Unix_error (Unix.EINTR, _, _) -> unix_read fd s j l
       in
-      let rc = unix_read fdi ds 0 (String.length ds) in
+      let rc = unix_read fdi ds 0 (Bytes.length ds) in
       Uutf.Manual.src d ds 0 rc; loop fdi fdo ds es d e
   in
-  let ds = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let es = String.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+  let ds = Bytes.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
+  let es = Bytes.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
   let d = Uutf.decoder ?nln ?encoding `Manual in
   let e = Uutf.encoder out_encoding `Manual in
-  Uutf.Manual.dst e es 0 (String.length es);
+  Uutf.Manual.dst e es 0 (Bytes.length es);
   loop fdi fdo ds es d e

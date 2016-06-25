@@ -31,7 +31,7 @@ let codec_test () =
       let e = Uutf.encoder encoding `Manual in
       let rec encode e v = match Uutf.encode e v with `Ok -> ()
       | `Partial ->
-          let brem = String.length s - !spos in
+          let brem = Bytes.length s - !spos in
           let drem = Uutf.Manual.dst_rem e in
           let bsize = min bsize brem in
           Uutf.Manual.dst e s !spos bsize;
@@ -67,7 +67,7 @@ let codec_test () =
     decode_uchars encoding s slen bsize
   in
   let full = 4 * 0x10FFFF in        (* will hold everything in any encoding. *)
-  let s = String.create full in
+  let s = Bytes.create full in
   let test encoding =
     (* Test with various sizes to increase condition coverage. *)
     for i = 1 to 11 do codec_uchars encoding s i done;
@@ -213,7 +213,7 @@ let guess_test () =
 
 module Int = struct type t = int let compare : int -> int -> int = compare end
 module Umap = Map.Make (Int)
-module Bmap = Map.Make (String)
+module Bmap = Map.Make (Bytes)
 
 (* Constructs from the specification, the map from uchars to their valid
    UTF-8 byte sequence and the map reverse map from valid UTF-8 byte sequences
@@ -238,24 +238,24 @@ let utf8_maps () =
     let umap = ref umap in
     let bmap = ref bmap in
     let uchar = ref umin in
-    let buf = String.create len in
+    let buf = Bytes.create len in
     let add len' =
       if len <> len' then () else
       begin
-        let bytes = String.copy buf in
+        let bytes = Bytes.copy buf in
         umap := Umap.add !uchar bytes !umap;
         bmap := Bmap.add bytes !uchar !bmap;
         incr uchar;
       end
     in
     for b0 = bmin 0 to bmax 0 do
-      String.unsafe_set buf 0 (Char.chr b0);
+      Bytes.unsafe_set buf 0 (Char.chr b0);
       for b1 = bmin 1 to bmax 1 do
-        String.unsafe_set buf 1 (Char.chr b1);
+        Bytes.unsafe_set buf 1 (Char.chr b1);
         for b2 = bmin 2 to bmax 2 do
-          String.unsafe_set buf 2 (Char.chr b2);
+          Bytes.unsafe_set buf 2 (Char.chr b2);
           for b3 = bmin 3 to bmax 3 do
-            String.unsafe_set buf 3 (Char.chr b3);
+            Bytes.unsafe_set buf 3 (Char.chr b3);
             add 4;
           done;
           add 3;
@@ -274,6 +274,7 @@ let utf8_encode_test umap =
   let buf = Buffer.create 4 in
   let test u =
     let bytes = try Umap.find u umap with Not_found -> assert false in
+    let bytes = Bytes.unsafe_to_string bytes in
     Buffer.clear buf; Uutf.Buffer.add_utf_8 buf u;
     if bytes = Buffer.contents buf then () else
     fail "UTF-8 encoding error (%s)" (Uutf.cp_to_string u)
@@ -284,37 +285,42 @@ let utf8_encode_test umap =
 let utf8_decode_test bmap =
   log "Testing the UTF-8 decoding of all <= 4 bytes sequences (be patient).\n";
   let spec seq = try `Uchar (Bmap.find seq bmap) with
-  | Not_found -> `Malformed seq
+  | Not_found -> `Malformed (Bytes.unsafe_to_string seq)
   in
   let test seq =
-    let dec = List.rev (Uutf.String.fold_utf_8 (fun a _ c -> c :: a) [] seq) in
+    let sseq = Bytes.unsafe_to_string seq in
+    let dec = List.rev (Uutf.String.fold_utf_8 (fun a _ c -> c :: a) [] sseq) in
     match spec seq, dec with
     | `Uchar u, [ `Uchar u' ] when u = u' -> `Decoded
     | `Malformed _, (`Malformed _) :: _ -> `Malformed
     | v, v' :: _ -> fail_decode v v'
-    | _ -> fail "This should not have happened on specification '%S'." seq
+    | _ -> fail "This should not have happened on specification '%S'." sseq
   in
-  let s1 = "X" and s2 = "XX" and s3 = "XXX" and s4 = "XXXX" in
+  let s1 = Bytes.create 1
+  and s2 = Bytes.create 2
+  and s3 = Bytes.create 3
+  and s4 = Bytes.create 4
+  in
   for b0 = 0x00 to 0xFF do
-    String.unsafe_set s1 0 (Char.unsafe_chr b0);
+    Bytes.unsafe_set s1 0 (Char.unsafe_chr b0);
     if test s1 = `Decoded then ()
     else begin
-      String.unsafe_set s2 0 (Char.unsafe_chr b0);
+      Bytes.unsafe_set s2 0 (Char.unsafe_chr b0);
       for b1 = 0x00 to 0xFF do
-        String.unsafe_set s2 1 (Char.unsafe_chr b1);
+        Bytes.unsafe_set s2 1 (Char.unsafe_chr b1);
 	if test s2 = `Decoded then ()
         else begin
-          String.unsafe_set s3 0 (Char.unsafe_chr b0);
-          String.unsafe_set s3 1 (Char.unsafe_chr b1);
+          Bytes.unsafe_set s3 0 (Char.unsafe_chr b0);
+          Bytes.unsafe_set s3 1 (Char.unsafe_chr b1);
 	  for b2 = 0x00 to 0xFF do
-            String.unsafe_set s3 2 (Char.unsafe_chr b2);
+            Bytes.unsafe_set s3 2 (Char.unsafe_chr b2);
 	    if test s3 = `Decoded then ()
             else begin
-              String.unsafe_set s4 0 (Char.unsafe_chr b0);
-              String.unsafe_set s4 1 (Char.unsafe_chr b1);
-              String.unsafe_set s4 2 (Char.unsafe_chr b2);
+              Bytes.unsafe_set s4 0 (Char.unsafe_chr b0);
+              Bytes.unsafe_set s4 1 (Char.unsafe_chr b1);
+              Bytes.unsafe_set s4 2 (Char.unsafe_chr b2);
 	      for b3 = 0x00 to 0xFF do
-                String.unsafe_set s4 3 (Char.unsafe_chr b3);
+                Bytes.unsafe_set s4 3 (Char.unsafe_chr b3);
 		ignore (test s4)
 	      done;
 	    end
