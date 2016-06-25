@@ -86,7 +86,7 @@ let buffer_string_codec_test () =
     | `Uchar u when u = uchar -> uchar_succ uchar
     | v -> fail_decode (`Uchar uchar) v
     in
-    ignore (decode check 0x0000 s)
+    ignore (decode ?pos:None ?len:None check 0x0000 s)
   in
   let b = Buffer.create (4 * 0x10FFFF) in
   codec_uchars `UTF_8 Uutf.Buffer.add_utf_8 Uutf.String.fold_utf_8 b;
