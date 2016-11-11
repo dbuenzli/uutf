@@ -29,50 +29,27 @@
     (latest version)}}
 *)
 
-  (** {1:basic Unicode characters}
+  (** {1:ucharcsts Special Unicode characters}
 
       [Uutf] uses the term character for a Unicode
       {{:http://unicode.org/glossary/#unicode_scalar_value} scalar
       value} which is an integer value in the ranges [0x0000]
-      ... [0xD7FF] and [0xE000] ... [0x10FFFF]. This should not be
+      ... [0xD7FF] and [0xE000] ... [0x10FFFF] as represented by the
+      values of the {!Uchar.t} type. This should not be
       confused with a Unicode
       {{:http://unicode.org/glossary/#code_point}code point}, which is
       a scalar value or a (textually meaningless)
       {{:http://unicode.org/glossary/#surrogate_code_point}surrogate
       code point}. *)
 
-type uchar = int
-(** The type for Unicode characters. Any value of this type returned
-    by [Uutf] is a Unicode
-    {{:http://unicode.org/glossary/#unicode_scalar_value}
-    scalar value}. *)
-
-val u_bom : uchar
+val u_bom : Uchar.t
 (** [u_bom] is the {{:http://unicode.org/glossary/#byte_order_mark}byte
     order mark} (BOM) character ([U+FEFF]). *)
 
-val u_rep : uchar
+val u_rep : Uchar.t
 (** [u_rep] is the
     {{:http://unicode.org/glossary/#replacement_character}replacement}
     character ([U+FFFD]). *)
-
-val is_uchar : int -> bool
-(** [is_uchar cp] is [true] iff [cp] is a Unicode
-    {{:http://unicode.org/glossary/#unicode_scalar_value}
-    scalar value}. *)
-
-val cp_to_string : int -> string
-(** [cp_to_string cp] represents the
-    {{:http://unicode.org/glossary/#code_point}code point} [cp] in
-    ASCII according to the Unicode notational convention
-    (see Appendix A in Unicode 6.1.0).
-    If [cp] is not a valid code point ["U+Invalid(X)"] is
-    returned where [X] is the hexadecimal integer value.
-
-    {b Warning.} Not thread safe. Use {!pp_cp} for thread safety. *)
-
-val pp_cp : Format.formatter -> int -> unit
-(** [pp_cp ppf cp] prints [cp] on [ppf]. See {!cp_to_string}. *)
 
 (** {1:schemes Unicode encoding schemes} *)
 
@@ -103,7 +80,7 @@ type src = [ `Channel of in_channel | `String of string | `Manual ]
 (** The type for input sources. With a [`Manual] source the client
     must provide input with {!Manual.src}. *)
 
-type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
+type nln = [ `ASCII of Uchar.t | `NLF of Uchar.t | `Readline of Uchar.t ]
 (** The type for newline normalizations. The variant argument is the
     normalization character.
     {ul
@@ -206,7 +183,7 @@ xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
     grapheme cluster boundaries} (see {!Uuseg}). *)
 
 val decode : decoder ->
-  [ `Await | `Uchar of uchar | `End | `Malformed of string]
+  [ `Await | `Uchar of Uchar.t | `End | `Malformed of string]
 (** [decode d] is:
     {ul
     {- [`Await] if [d] has a [`Manual] input source and awaits
@@ -273,7 +250,7 @@ val decoder_nln : decoder -> nln option
 (** [decoder_nln d] returns [d]'s newline normalization (if any). *)
 
 val pp_decode : Format.formatter ->
-  [< `Await | `Uchar of uchar | `End | `Malformed of string] -> unit
+  [< `Await | `Uchar of Uchar.t | `End | `Malformed of string] -> unit
 (** [pp_decode ppf v] prints an unspecified representation of [v] on
     [ppf]. *)
 
@@ -294,7 +271,8 @@ val encoder : [< encoding] -> [< dst] -> encoder
     {{:http://unicode.org/glossary/#byte_order_mark}BOM}
     is encoded. If needed, this duty is left to the client. *)
 
-val encode : encoder -> [<`Await | `End | `Uchar of uchar ] -> [`Ok | `Partial ]
+val encode :
+  encoder -> [<`Await | `End | `Uchar of Uchar.t ] -> [`Ok | `Partial ]
 (** [encode e v] is :
     {ul
     {- [`Partial] iff [e] has a [`Manual] destination and needs more output
@@ -361,7 +339,7 @@ module String : sig
     {b Note.} Initial {{:http://unicode.org/glossary/#byte_order_mark}BOM}s
     are also folded over. *)
 
-  type 'a folder = 'a -> int -> [ `Uchar of uchar | `Malformed of string ] ->
+  type 'a folder = 'a -> int -> [ `Uchar of Uchar.t | `Malformed of string ] ->
     'a
   (** The type for character folders. The integer is the index in the
       string where the [`Uchar] or [`Malformed] starts. *)
@@ -407,17 +385,17 @@ module Buffer : sig
       scalar value}. If you are handling foreign data you
       can use {!is_uchar} to assert that. *)
 
-  val add_utf_8 : Buffer.t -> uchar -> unit
+  val add_utf_8 : Buffer.t -> Uchar.t -> unit
   (** [add_utf_8 b u] adds the UTF-8 encoding of the
       {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
       scalar value} [u] to [b]. *)
 
-  val add_utf_16be : Buffer.t -> uchar -> unit
+  val add_utf_16be : Buffer.t -> Uchar.t -> unit
   (** [add_utf_16be b u] adds the UTF-16BE encoding of the
       {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
       scalar value} [u] to [b]. *)
 
-  val add_utf_16le : Buffer.t -> uchar -> unit
+  val add_utf_16le : Buffer.t -> Uchar.t -> unit
   (** [add_utf_16le b u] adds the UTF-16LE encoding of the
       {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
       scalar value} [u] to [b]. *)
@@ -434,25 +412,33 @@ end
     malformed sequence by the replacement character {!u_rep} and continue.
 {[let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
   let rec loop d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop d buf acc
+  | `Uchar u ->
+      begin match Uchar.to_int u with
+      | 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop d buf (line :: acc)
+      | _ ->
+          Uutf.Buffer.add_utf_8 buf u; loop d buf acc
+      end
   | `End -> List.rev (Buffer.contents buf :: acc)
   | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop d buf acc
   | `Await -> assert false
   in
-  let nln = `Readline 0x000A in
-  loop (Uutf.decoder ~nln ?encoding src) (Buffer.create 512) []]}
-
+  let nln = `Readline (Uchar.of_int 0x000A) in
+  loop (Uutf.decoder ~nln ?encoding src) (Buffer.create 512) []
+]}
   Using the [`Manual] interface, [lines_fd] does the same but on a Unix file
   descriptor.
 {[let lines_fd ?encoding (fd : Unix.file_descr) =
   let rec loop fd s d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop fd s d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
+  | `Uchar u ->
+      begin match Uchar.to_int u with
+      | 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop fd s d buf (line :: acc)
+      | _ ->
+          Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
+      end
   | `End -> List.rev (Buffer.contents buf :: acc)
   | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop fd s d buf acc
   | `Await ->
@@ -463,7 +449,7 @@ end
       Uutf.Manual.src d s 0 rc; loop fd s d buf acc
   in
   let s = Bytes.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let nln = `Readline 0x000A in
+  let nln = `Readline (Uchar.of_int 0x000A) in
   loop fd s (Uutf.decoder ~nln ?encoding `Manual) (Buffer.create 512) []
 ]}
 

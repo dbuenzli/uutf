@@ -1,4 +1,12 @@
 
+- OCaml standard library `Uchar.t` support.
+  - Removes and substitutes `type Uutf.uchar = int` by the (abstract)
+    `Uchar.t` type. `Uchar.{of,to}_int` allows to recover the previous
+    representation.
+  - Removes `Uutf.{is_uchar,cp_to_string,pp_cp}`. `Uchar.{is_valid,dump}`
+    can be used instead.
+- Safe string support. Manual sources and destinations now work on bytes
+  rather than strings.
 - Build depend on topkg.
 - Relicense from BSD3 to ISC.
 

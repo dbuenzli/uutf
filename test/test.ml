@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let u_nl = 0x000A
+let u_nl = Uchar.of_int 0x000A
 let log f = Format.printf (f ^^ "@?")
 let fail fmt =
   let fail _ = failwith (Format.flush_str_formatter ()) in
@@ -13,14 +13,10 @@ let fail fmt =
 let fail_decode e f =
   fail "expected %a, decoded %a" Uutf.pp_decode e Uutf.pp_decode f
 
-let uchar_succ = function
-| 0xD7FF -> 0xE000
-| 0x10FFFF -> 0x10FFFF
-| uchar -> uchar + 1
-
+let uchar_succ u = if Uchar.equal u Uchar.max then u else Uchar.succ u
 let iter_uchars f =
-  for u = 0x0000 to 0xD7FF do f u done;
-  for u = 0xE000 to 0x10FFFF do f u done
+  for u = 0x0000 to 0xD7FF do f (Uchar.unsafe_of_int u) done;
+  for u = 0xE000 to 0x10FFFF do f (Uchar.unsafe_of_int u) done
 
 let codec_test () =
   let codec_uchars encoding s bsize =
@@ -83,10 +79,10 @@ let buffer_string_codec_test () =
     iter_uchars (encode b);
     let s = Buffer.contents b in
     let check uchar _ = function
-    | `Uchar u when u = uchar -> uchar_succ uchar
+    | `Uchar u when Uchar.equal u uchar -> uchar_succ uchar
     | v -> fail_decode (`Uchar uchar) v
     in
-    ignore (decode ?pos:None ?len:None check 0x0000 s)
+    ignore (decode ?pos:None ?len:None check (Uchar.of_int 0x0000) s)
   in
   let b = Buffer.create (4 * 0x10FFFF) in
   codec_uchars `UTF_8 Uutf.Buffer.add_utf_8 Uutf.String.fold_utf_8 b;
@@ -137,7 +133,7 @@ let guess_test () =
   let test (s, enc, removed_bom, seq) =
     let d = Uutf.decoder (`String s) in
     let rec test_seq seq d = match seq, Uutf.decode d with
-    | `Uchar u :: vs, `Uchar u' when u = u' -> test_seq vs d
+    | `Uchar u :: vs, `Uchar u' when Uchar.equal u u' -> test_seq vs d
     | `Malformed bs :: vs, `Malformed bs' when bs = bs' -> test_seq vs d
     | [], `End -> ()
     | v :: _, v' -> fail_decode v v'
@@ -151,37 +147,38 @@ let guess_test () =
     if rem_bom <> removed_bom then
       fail "expected removed bom: %b found: %b" removed_bom rem_bom
   in
+  let uchar u = `Uchar (Uchar.unsafe_of_int u) in
   (* UTF-8 guess *)
   test ("", `UTF_8, false, []);
   test ("\xEF", `UTF_8, false, [`Malformed "\xEF";]);
   test ("\xEF\xBB", `UTF_8, false, [`Malformed "\xEF\xBB";]);
   test ("\xEF\xBB\x00", `UTF_8, false, [`Malformed "\xEF\xBB\x00";]);
   test ("\xEF\xBB\xBF\xEF\xBB\xBF", `UTF_8, true, [`Uchar Uutf.u_bom;]);
-  test ("\n\r\n", `UTF_8, false, [`Uchar u_nl; `Uchar 0x0D; `Uchar u_nl;]);
+  test ("\n\r\n", `UTF_8, false, [`Uchar u_nl; uchar 0x0D; `Uchar u_nl;]);
   test ("\n\x80\xEF\xBB\xBF\n", `UTF_8, false,
         [`Uchar u_nl; `Malformed "\x80"; `Uchar Uutf.u_bom; `Uchar u_nl]);
   test ("\n\n\xEF\xBB\x00\n", `UTF_8, false,
         [`Uchar u_nl; `Uchar u_nl; `Malformed "\xEF\xBB\x00"; `Uchar u_nl;]);
-  test ("\n\xC8\x99", `UTF_8, false, [`Uchar u_nl; `Uchar 0x0219;]);
-  test ("\xC8\x99\n", `UTF_8, false, [`Uchar 0x0219; `Uchar u_nl;]);
+  test ("\n\xC8\x99", `UTF_8, false, [`Uchar u_nl; uchar 0x0219;]);
+  test ("\xC8\x99\n", `UTF_8, false, [uchar 0x0219; `Uchar u_nl;]);
   test ("\xC8\x99\n\n", `UTF_8, false,
-        [`Uchar 0x0219; `Uchar u_nl; `Uchar u_nl]);
-  test ("\xC8\x99\xC8\x99", `UTF_8, false, [`Uchar 0x0219; `Uchar 0x0219]);
+        [uchar 0x0219; `Uchar u_nl; `Uchar u_nl]);
+  test ("\xC8\x99\xC8\x99", `UTF_8, false, [uchar 0x0219; uchar 0x0219]);
   test ("\xC8\x99\xF0\x9F\x90\xAB", `UTF_8, false,
-        [`Uchar 0x0219; `Uchar 0x1F42B]);
-  test ("\xF0\x9F\x90\xAB\n", `UTF_8, false, [`Uchar 0x1F42B; `Uchar u_nl ]);
+        [uchar 0x0219; uchar 0x1F42B]);
+  test ("\xF0\x9F\x90\xAB\n", `UTF_8, false, [uchar 0x1F42B; `Uchar u_nl ]);
   (* UTF-16BE guess *)
   test ("\xFE\xFF\xDB\xFF\xDF\xFF\x00\x0A", `UTF_16BE, true,
-        [`Uchar 0x10FFFF; `Uchar u_nl;]);
+        [uchar 0x10FFFF; `Uchar u_nl;]);
   test ("\xFE\xFF\xDB\xFF\x00\x0A\x00\x0A", `UTF_16BE, true,
        [`Malformed "\xDB\xFF\x00\x0A"; `Uchar u_nl;]);
   test ("\xFE\xFF\xDB\xFF\xDF", `UTF_16BE, true,
         [`Malformed "\xDB\xFF\xDF";]);
   test ("\x80\x81\xDB\xFF\xDF\xFF\xFE\xFF\xDF\xFF\xDB\xFF", `UTF_16BE, false,
-        [`Uchar 0x8081; `Uchar 0x10FFFF; `Uchar Uutf.u_bom;
+        [uchar 0x8081; uchar 0x10FFFF; `Uchar Uutf.u_bom;
           `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF"]);
   test ("\x80\x81\xDF\xFF\xDB\xFF\xFE", `UTF_16BE, false,
-        [`Uchar 0x8081; `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF\xFE";]);
+        [uchar 0x8081; `Malformed "\xDF\xFF"; `Malformed "\xDB\xFF\xFE";]);
   test ("\x00\x0A", `UTF_16BE, false, [`Uchar u_nl]);
   test ("\x00\x0A\xDB", `UTF_16BE, false, [`Uchar u_nl; `Malformed "\xDB"]);
   test ("\x00\x0A\xDB\xFF", `UTF_16BE, false,
@@ -189,12 +186,12 @@ let guess_test () =
   test ("\x00\x0A\xDB\xFF\xDF", `UTF_16BE, false,
         [`Uchar u_nl; `Malformed "\xDB\xFF\xDF"]);
   test ("\x00\x0A\xDB\xFF\xDF\xFF", `UTF_16BE, false,
-        [`Uchar u_nl; `Uchar 0x10FFFF]);
+        [`Uchar u_nl; uchar 0x10FFFF]);
   test ("\x00\x0A\x00\x0A", `UTF_16BE, false,
         [`Uchar u_nl; `Uchar u_nl]);
   (* UTF-16LE guess *)
   test ("\xFF\xFE\xFF\xDB\xFF\xDF\x0A\x00", `UTF_16LE, true,
-        [`Uchar 0x10FFFF; `Uchar u_nl;]);
+        [uchar 0x10FFFF; `Uchar u_nl;]);
   test ("\xFF\xFE\xFF\xDB\x0A\x00\x0A\x00", `UTF_16LE, true,
        [`Malformed "\xFF\xDB\x0A\x00"; `Uchar u_nl;]);
   test ("\xFF\xFE\xFF\xDB\xDF", `UTF_16LE, true,
@@ -206,13 +203,13 @@ let guess_test () =
   test ("\x0A\x00\xFF\xDB\xDF", `UTF_16LE, false,
         [`Uchar u_nl; `Malformed "\xFF\xDB\xDF"]);
   test ("\x0A\x00\xFF\xDB\xFF\xDF", `UTF_16LE, false,
-        [`Uchar u_nl; `Uchar 0x10FFFF]);
+        [`Uchar u_nl; uchar 0x10FFFF]);
   test ("\x0A\x00\x0A\x00", `UTF_16LE, false,
         [`Uchar u_nl; `Uchar u_nl]);
   ()
 
 module Int = struct type t = int let compare : int -> int -> int = compare end
-module Umap = Map.Make (Int)
+module Umap = Map.Make (Uchar)
 module Bmap = Map.Make (Bytes)
 
 (* Constructs from the specification, the map from uchars to their valid
@@ -243,8 +240,9 @@ let utf8_maps () =
       if len <> len' then () else
       begin
         let bytes = Bytes.copy buf in
-        umap := Umap.add !uchar bytes !umap;
-        bmap := Bmap.add bytes !uchar !bmap;
+        let u = Uchar.of_int !uchar in
+        umap := Umap.add u bytes !umap;
+        bmap := Bmap.add bytes u !bmap;
         incr uchar;
       end
     in
@@ -273,11 +271,12 @@ let utf8_encode_test umap =
   log "Testing UTF-8 encoding of every unicode scalar value against spec.\n";
   let buf = Buffer.create 4 in
   let test u =
+    let u = Uchar.unsafe_of_int u in
     let bytes = try Umap.find u umap with Not_found -> assert false in
     let bytes = Bytes.unsafe_to_string bytes in
     Buffer.clear buf; Uutf.Buffer.add_utf_8 buf u;
     if bytes = Buffer.contents buf then () else
-    fail "UTF-8 encoding error (%s)" (Uutf.cp_to_string u)
+    fail "UTF-8 encoding error (%a)" Uchar.dump u
   in
   for i = 0x0000 to 0xD7FF do test i done;
   for i = 0xE000 to 0x10FFFF do test i done
@@ -337,12 +336,11 @@ let utf8_test () =                             (* Proof by exhaustiveness... *)
   ()
 
 let is_uchar_test () =
-  log "Testing Uutf.is_uchar.\n";
+  log "Testing Uchar.is_valid.\n";
   let test cp expected =
-    let is = Uutf.is_uchar cp in
+    let is = Uchar.is_valid cp in
     if is <> expected then
-    fail "Uutf.is_uchar %a = %b, expected %b"
-      Uutf.pp_decode (`Uchar cp) is expected
+    fail "Uutf.is_uchar %04X = %b, expected %b" cp is expected
   in
   for cp = 0x0000 to 0xD7FF do test cp true done;
   for cp = 0xD800 to 0xDFFF do test cp false done;

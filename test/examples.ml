@@ -4,23 +4,31 @@
 
 let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
   let rec loop d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop d buf acc
+  | `Uchar u ->
+      begin match Uchar.to_int u with
+      | 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop d buf (line :: acc)
+      | _ ->
+          Uutf.Buffer.add_utf_8 buf u; loop d buf acc
+      end
   | `End -> List.rev (Buffer.contents buf :: acc)
   | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop d buf acc
   | `Await -> assert false
   in
-  let nln = `Readline 0x000A in
+  let nln = `Readline (Uchar.of_int 0x000A) in
   loop (Uutf.decoder ~nln ?encoding src) (Buffer.create 512) []
 
 let lines_fd ?encoding (fd : Unix.file_descr) =
   let rec loop fd s d buf acc = match Uutf.decode d with
-  | `Uchar 0x000A ->
-      let line = Buffer.contents buf in
-      Buffer.clear buf; loop fd s d buf (line :: acc)
-  | `Uchar u -> Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
+  | `Uchar u ->
+      begin match Uchar.to_int u with
+      | 0x000A ->
+          let line = Buffer.contents buf in
+          Buffer.clear buf; loop fd s d buf (line :: acc)
+      | _ ->
+          Uutf.Buffer.add_utf_8 buf u; loop fd s d buf acc
+      end
   | `End -> List.rev (Buffer.contents buf :: acc)
   | `Malformed _ -> Uutf.Buffer.add_utf_8 buf Uutf.u_rep; loop fd s d buf acc
   | `Await ->
@@ -31,7 +39,7 @@ let lines_fd ?encoding (fd : Unix.file_descr) =
       Uutf.Manual.src d s 0 rc; loop fd s d buf acc
   in
   let s = Bytes.create 65536 (* UNIX_BUFFER_SIZE in 4.0.0 *) in
-  let nln = `Readline 0x000A in
+  let nln = `Readline (Uchar.of_int 0x000A) in
   loop fd s (Uutf.decoder ~nln ?encoding `Manual) (Buffer.create 512) []
 
 (* Recode *)

@@ -23,19 +23,8 @@ let unsafe_set_byte s j byte = Bytes.unsafe_set s j (Char.unsafe_chr byte)
 
 (* Unicode characters *)
 
-type uchar = int
-let u_bom = 0xFEFF                                                   (* BOM. *)
-let u_rep = 0xFFFD                                 (* replacement character. *)
-let is_uchar cp =
-  (0x0000 <= cp && cp <= 0xD7FF) || (0xE000 <= cp && cp <= 0x10FFFF)
-
-let pp_cp ppf cp =
-  if cp < 0 || cp > 0x10FFFF then pp ppf "U+Invalid(%X)" cp else
-  if cp <= 0xFFFF then pp ppf "U+%04X" cp else
-  pp ppf "U+%X" cp
-
-let cp_to_string cp =                                    (* NOT thread safe. *)
-  pp Format.str_formatter "%a" pp_cp cp; Format.flush_str_formatter ()
+let u_bom = Uchar.unsafe_of_int 0xFEFF                               (* BOM. *)
+let u_rep = Uchar.unsafe_of_int 0xFFFD             (* replacement character. *)
 
 (* Unicode encoding schemes *)
 
@@ -74,11 +63,11 @@ let malformed_pair be hi s j l =    (* missing or half low surrogate at eoi. *)
 let r_us_ascii s j =
   (* assert (0 <= j && j < String.length s); *)
   let b0 = unsafe_byte s j in
-  if b0 <= 127 then `Uchar b0 else malformed s j 1
+  if b0 <= 127 then `Uchar (Uchar.unsafe_of_int b0) else malformed s j 1
 
 let r_iso_8859_1 s j =
   (* assert (0 <= j && j < String.length s); *)
-  `Uchar (unsafe_byte s j)
+  `Uchar (Uchar.unsafe_of_int @@ unsafe_byte s j)
 
 let utf_8_len = [| (* uchar byte length according to first UTF-8 byte. *)
   1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
@@ -95,38 +84,39 @@ let utf_8_len = [| (* uchar byte length according to first UTF-8 byte. *)
 
 let r_utf_8 s j l =
   (* assert (0 <= j && 0 <= l && j + l <= String.length s); *)
+  let uchar c = `Uchar (Uchar.unsafe_of_int c) in
   match l with
-  | 1 -> `Uchar (unsafe_byte s j)
+  | 1 -> uchar (unsafe_byte s j)
   | 2 ->
       let b0 = unsafe_byte s j in let b1 = unsafe_byte s (j + 1) in
       if b1 lsr 6 != 0b10 then malformed s j l else
-      `Uchar (((b0 land 0x1F) lsl 6) lor (b1 land 0x3F))
+      uchar (((b0 land 0x1F) lsl 6) lor (b1 land 0x3F))
   | 3 ->
       let b0 = unsafe_byte s j in let b1 = unsafe_byte s (j + 1) in
       let b2 = unsafe_byte s (j + 2) in
-      let c = `Uchar (((b0 land 0x0F) lsl 12) lor
-                      ((b1 land 0x3F) lsl 6) lor
-          (b2 land 0x3F))
+      let c = ((b0 land 0x0F) lsl 12) lor
+              ((b1 land 0x3F) lsl 6) lor
+              (b2 land 0x3F)
       in
       if b2 lsr 6 != 0b10 then malformed s j l else
       begin match b0 with
-      | 0xE0 -> if b1 < 0xA0 || 0xBF < b1 then malformed s j l else c
-      | 0xED -> if b1 < 0x80 || 0x9F < b1 then malformed s j l else c
-      | _ -> if b1 lsr 6 != 0b10 then malformed s j l else c
+      | 0xE0 -> if b1 < 0xA0 || 0xBF < b1 then malformed s j l else uchar c
+      | 0xED -> if b1 < 0x80 || 0x9F < b1 then malformed s j l else uchar c
+      | _ -> if b1 lsr 6 != 0b10 then malformed s j l else uchar c
       end
   | 4 ->
       let b0 = unsafe_byte s j in let b1 = unsafe_byte s (j + 1) in
       let b2 = unsafe_byte s (j + 2) in let b3 = unsafe_byte s (j + 3) in
-      let c = `Uchar (((b0 land 0x07) lsl 18) lor
-                      ((b1 land 0x3F) lsl 12) lor
-          ((b2 land 0x3F) lsl 6) lor
-                      (b3 land 0x3F))
+      let c = (((b0 land 0x07) lsl 18) lor
+               ((b1 land 0x3F) lsl 12) lor
+               ((b2 land 0x3F) lsl 6) lor
+               (b3 land 0x3F))
       in
       if b3 lsr 6 != 0b10 || b2 lsr 6 != 0b10 then malformed s j l else
       begin match b0 with
-      | 0xF0 -> if b1 < 0x90 || 0xBF < b1 then malformed s j l else c
-      | 0xF4 -> if b1 < 0x80 || 0x8F < b1 then malformed s j l else c
-      | _ -> if b1 lsr 6 != 0b10 then malformed s j l else c
+      | 0xF0 -> if b1 < 0x90 || 0xBF < b1 then malformed s j l else uchar c
+      | 0xF4 -> if b1 < 0x80 || 0x8F < b1 then malformed s j l else uchar c
+      | _ -> if b1 lsr 6 != 0b10 then malformed s j l else uchar c
       end
   | _ -> assert false
 
@@ -134,7 +124,7 @@ let r_utf_16 s j0 j1 =                       (* May return a high surrogate. *)
   (* assert (0 <= j0 && 0 <= j1 && max j0 j1 < String.length s); *)
   let b0 = unsafe_byte s j0 in let b1 = unsafe_byte s j1 in
   let u = (b0 lsl 8) lor b1 in
-  if u < 0xD800 || u > 0xDFFF then `Uchar u else
+  if u < 0xD800 || u > 0xDFFF then `Uchar (Uchar.unsafe_of_int u) else
   if u > 0xDBFF then malformed s (min j0 j1) 2 else `Hi u
 
 let r_utf_16_lo hi s j0 j1 =          (* Combines [hi] with a low surrogate. *)
@@ -144,7 +134,8 @@ let r_utf_16_lo hi s j0 j1 =          (* Combines [hi] with a low surrogate. *)
   let lo = (b0 lsl 8) lor b1 in
   if lo < 0xDC00 || lo > 0xDFFF
   then malformed_pair (j0 < j1 (* true => be *)) hi s (min j0 j1) 2
-  else `Uchar ((((hi land 0x3FF) lsl 10) lor (lo land 0x3FF)) + 0x10000)
+  else `Uchar (Uchar.unsafe_of_int ((((hi land 0x3FF) lsl 10) lor
+                                     (lo land 0x3FF)) + 0x10000))
 
 let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
   (* assert (0 <= j && 0 <= l && j + l <= String.length s) *)
@@ -166,11 +157,11 @@ let r_encoding s j l =                  (* guess encoding with max. 3 bytes. *)
 (* Decode *)
 
 type src = [ `Channel of in_channel | `String of string | `Manual ]
-type nln = [ `ASCII of uchar | `NLF of uchar | `Readline of uchar ]
-type decode = [ `Await | `End | `Malformed of string | `Uchar of uchar]
+type nln = [ `ASCII of Uchar.t | `NLF of Uchar.t | `Readline of Uchar.t ]
+type decode = [ `Await | `End | `Malformed of string | `Uchar of Uchar.t]
 
 let pp_decode ppf = function
-| `Uchar u -> pp ppf "@[`Uchar %a@]" pp_cp u
+| `Uchar u -> pp ppf "@[`Uchar %a@]" Uchar.dump u
 | `End -> pp ppf "`End"
 | `Await -> pp ppf "`Await"
 | `Malformed bs ->
@@ -184,7 +175,7 @@ type decoder =
   { src : src;                                              (* input source. *)
     mutable encoding : decoder_encoding;                (* decoded encoding. *)
     nln : nln option;                     (* newline normalization (if any). *)
-    nl : int;                            (* newline normalization character. *)
+    nl : Uchar.t;                        (* newline normalization character. *)
     mutable i : Bytes.t;                             (* current input chunk. *)
     mutable i_pos : int;                          (* input current position. *)
     mutable i_max : int;                          (* input maximal position. *)
@@ -198,7 +189,7 @@ type decoder =
     mutable byte_count : int;                                 (* byte count. *)
     mutable count : int;                                      (* char count. *)
     mutable pp :        (* decoder post-processor for BOM, position and nln. *)
-      decoder -> [ `Malformed of string | `Uchar of uchar ] -> decode;
+      decoder -> [ `Malformed of string | `Uchar of Uchar.t ] -> decode;
     mutable k : decoder -> decode }                 (* decoder continuation. *)
 
 (* On decodes that overlap two (or more) [d.i] buffers, we use [t_fill] to copy
@@ -387,7 +378,7 @@ let guessed_utf_16 d be v =     (* start decoder after `UTF_16{BE,LE} guess. *)
   in
   match v with
   | `BOM -> ret (b3 t_decode_utf_16) (`Uchar u_bom) 2 d
-  | `ASCII u -> ret (b3 t_decode_utf_16) (`Uchar u) 2 d
+  | `ASCII u -> ret (b3 t_decode_utf_16) (`Uchar (Uchar.unsafe_of_int u)) 2 d
   | `Decode ->
       match r_utf_16 d.t j0 j1 with
       | `Malformed _ | `Uchar _ as v -> ret (b3 t_decode_utf_16) v 2 d
@@ -424,51 +415,70 @@ let ncount d = d.count <- d.count + 1                            (* inlined. *)
 let cr d b = d.last_cr <- b                                      (* inlined. *)
 
 let pp_remove_bom utf16 pp d = function(* removes init. BOM, handles UTF-16. *)
-| `Uchar 0xFEFF (* BOM *) ->
-    if utf16 then (d.encoding <- `UTF_16BE; d.k <- decode_utf_16be);
-    d.removed_bom <- true; d.pp <- pp; d.k d
-| `Uchar 0xFFFE (* BOM reversed from decode_utf_16be *) when utf16 ->
-    d.encoding <- `UTF_16LE; d.k <- decode_utf_16le;
-    d.removed_bom <- true; d.pp <- pp; d.k d
-| `Malformed _ | `Uchar _ as v ->
-    d.removed_bom <- false; d.pp <- pp; d.pp d v
+| `Malformed _  as v -> d.removed_bom <- false; d.pp <- pp; d.pp d v
+| `Uchar u as v ->
+    match Uchar.to_int u with
+    | 0xFEFF (* BOM *) ->
+        if utf16 then (d.encoding <- `UTF_16BE; d.k <- decode_utf_16be);
+        d.removed_bom <- true; d.pp <- pp; d.k d
+    | 0xFFFE (* BOM reversed from decode_utf_16be *) when utf16 ->
+        d.encoding <- `UTF_16LE; d.k <- decode_utf_16le;
+        d.removed_bom <- true; d.pp <- pp; d.k d
+    | _ ->
+        d.removed_bom <- false; d.pp <- pp; d.pp d v
 
 let pp_nln_none d = function
-| `Uchar 0x000A (* LF *) as v ->
-    let last_cr = d.last_cr in
-    cr d false; ncount d; if last_cr then v else (nline d; v)
-| `Uchar 0x000D (* CR *) as v -> cr d true; ncount d; nline d; v
-| `Uchar (0x0085 | 0x000C | 0x2028 | 0x2029) (* NEL | FF | LS | PS *) as v ->
-    cr d false; ncount d; nline d; v
-| `Uchar _ | `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Uchar u as v ->
+    match Uchar.to_int u with
+    | 0x000A (* LF *) ->
+        let last_cr = d.last_cr in
+        cr d false; ncount d; if last_cr then v else (nline d; v)
+    | 0x000D (* CR *) -> cr d true; ncount d; nline d; v
+    | (0x0085 | 0x000C | 0x2028 | 0x2029) (* NEL | FF | LS | PS *) ->
+        cr d false; ncount d; nline d; v
+    | _ ->
+        cr d false; ncount d; ncol d; v
 
 let pp_nln_readline d = function
-| `Uchar 0x000A (* LF *) ->
-    let last_cr = d.last_cr in
-    cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
-| `Uchar 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
-| `Uchar (0x0085 | 0x000C | 0x2028 | 0x2029) (* NEL | FF | LS | PS *) ->
-    cr d false; ncount d; nline d; `Uchar d.nl
-| `Uchar _ | `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Uchar u as v ->
+    match Uchar.to_int u with
+    | 0x000A (* LF *) ->
+        let last_cr = d.last_cr in
+        cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
+    | 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
+    | (0x0085 | 0x000C | 0x2028 | 0x2029) (* NEL | FF | LS | PS *) ->
+        cr d false; ncount d; nline d; `Uchar d.nl
+    | _ ->
+        cr d false; ncount d; ncol d; v
 
 let pp_nln_nlf d = function
-| `Uchar 0x000A (* LF *) ->
-    let last_cr = d.last_cr in
-    cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
-| `Uchar 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
-| `Uchar 0x0085 (* NEL *) -> cr d false; ncount d; nline d; `Uchar d.nl
-| `Uchar (0x000C | 0x2028 | 0x2029) as v (* FF | LS | PS *) ->
-    cr d false; ncount d; nline d; v
-| `Uchar _ | `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Uchar u as v ->
+    match Uchar.to_int u with
+    | 0x000A (* LF *) ->
+        let last_cr = d.last_cr in
+        cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
+    | 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
+    | 0x0085 (* NEL *) -> cr d false; ncount d; nline d; `Uchar d.nl
+    | (0x000C | 0x2028 | 0x2029) (* FF | LS | PS *) ->
+        cr d false; ncount d; nline d; v
+    | _ ->
+        cr d false; ncount d; ncol d; v
 
 let pp_nln_ascii d = function
-| `Uchar 0x000A (* LF *) ->
-    let last_cr = d.last_cr in
-    cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
-| `Uchar 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
-| `Uchar (0x0085 | 0x000C | 0x2028 | 0x2029) as v (* NEL | FF | LS | PS *) ->
-    cr d false; ncount d; nline d; v
-| `Uchar _ | `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Malformed _ as v -> cr d false; ncount d; ncol d; v
+| `Uchar u as v ->
+    match Uchar.to_int u with
+    | 0x000A (* LF *) ->
+        let last_cr = d.last_cr in
+        cr d false; if last_cr then d.k d else (ncount d; nline d; `Uchar d.nl)
+    | 0x000D (* CR *) -> cr d true; ncount d; nline d; `Uchar d.nl
+    | (0x0085 | 0x000C | 0x2028 | 0x2029) (* NEL | FF | LS | PS *) ->
+        cr d false; ncount d; nline d; v
+    | _ ->
+        cr d false; ncount d; ncol d; v
 
 let decode_fun = function
 | `UTF_8 -> decode_utf_8
@@ -480,7 +490,7 @@ let decode_fun = function
 
 let decoder ?nln ?encoding src =
   let pp, nl = match nln with
-  | None -> pp_nln_none, 0x000A (* not used. *)
+  | None -> pp_nln_none, Uchar.unsafe_of_int 0x000A (* not used. *)
   | Some (`ASCII nl) -> pp_nln_ascii, nl
   | Some (`NLF nl) -> pp_nln_nlf, nl
   | Some (`Readline nl) -> pp_nln_readline, nl
@@ -515,7 +525,7 @@ let set_decoder_encoding d e =
 (* Encode *)
 
 type dst = [ `Channel of out_channel | `Buffer of Buffer.t | `Manual ]
-type encode = [ `Await | `End | `Uchar of uchar ]
+type encode = [ `Await | `End | `Uchar of Uchar.t ]
 type encoder =
   { dst : dst;                                        (* output destination. *)
     encoding : encoding;                                (* encoded encoding. *)
@@ -566,6 +576,7 @@ let rec encode_utf_8 e v =
   | `Await -> k e
   | `End -> flush k e
   | `Uchar u as v ->
+      let u = Uchar.to_int u in
       let rem = o_rem e in
       if u <= 0x007F then
       if rem < 1 then flush (fun e -> encode_utf_8 e v) e else
@@ -610,6 +621,7 @@ let rec encode_utf_16be e v =
   | `Await -> k e
   | `End -> flush k e
   | `Uchar u ->
+      let u = Uchar.to_int u in
       let rem = o_rem e in
       if u < 0x10000 then
       begin
@@ -641,32 +653,33 @@ let rec encode_utf_16le e v =         (* encode_uft_16be with bytes swapped. *)
   | `Await -> k e
   | `End -> flush k e
   | `Uchar u ->
-    let rem = o_rem e in
-    if u < 0x10000 then
-    begin
-      let s, j, k =
-        if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
-        let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
-      in
-      unsafe_set_byte s j (u land 0xFF);
-      unsafe_set_byte s (j + 1) (u lsr 8);
-      k e
-    end
-    else
-    begin
-      let s, j, k =
-        if rem < 4 then (t_range e 3; e.t, 0, t_flush k) else
-        let j = e.o_pos in (e.o_pos <- e.o_pos + 4; e.o, j, k)
-      in
-      let u' = u - 0x10000 in
-      let hi = (0xD800 lor (u' lsr 10)) in
-      let lo = (0xDC00 lor (u' land 0x3FF)) in
-      unsafe_set_byte s j (hi land 0xFF);
-      unsafe_set_byte s (j + 1) (hi lsr 8);
-      unsafe_set_byte s (j + 2) (lo land 0xFF);
-      unsafe_set_byte s (j + 3) (lo lsr 8);
-      k e
-    end
+      let u = Uchar.to_int u in
+      let rem = o_rem e in
+      if u < 0x10000 then
+        begin
+          let s, j, k =
+            if rem < 2 then (t_range e 1; e.t, 0, t_flush k) else
+            let j = e.o_pos in (e.o_pos <- e.o_pos + 2; e.o, j, k)
+          in
+          unsafe_set_byte s j (u land 0xFF);
+          unsafe_set_byte s (j + 1) (u lsr 8);
+          k e
+        end
+      else
+      begin
+        let s, j, k =
+          if rem < 4 then (t_range e 3; e.t, 0, t_flush k) else
+          let j = e.o_pos in (e.o_pos <- e.o_pos + 4; e.o, j, k)
+        in
+        let u' = u - 0x10000 in
+        let hi = (0xD800 lor (u' lsr 10)) in
+        let lo = (0xDC00 lor (u' land 0x3FF)) in
+        unsafe_set_byte s j (hi land 0xFF);
+        unsafe_set_byte s (j + 1) (hi lsr 8);
+        unsafe_set_byte s (j + 2) (lo land 0xFF);
+        unsafe_set_byte s (j + 3) (lo lsr 8);
+        k e
+      end
 
 let encode_fun = function
 | `UTF_8 -> encode_utf_8
@@ -706,7 +719,7 @@ module String = struct
     | `UTF_16LE d -> `UTF_16LE, (d = `BOM)
 
   type 'a folder =
-    'a -> int -> [ `Uchar of uchar | `Malformed of string ] -> 'a
+    'a -> int -> [ `Uchar of Uchar.t | `Malformed of string ] -> 'a
 
   let fold_utf_8 ?(pos = 0) ?len f acc s =
     let rec loop acc f s i l =
@@ -760,6 +773,7 @@ end
 
 module Buffer = struct
   let add_utf_8 b u =
+    let u = Uchar.to_int u in
     let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u <= 0x007F then
     (w u)
@@ -777,6 +791,7 @@ module Buffer = struct
      w (0x80 lor (u land 0x3F)))
 
   let add_utf_16be b u =
+    let u = Uchar.to_int u in
     let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u < 0x10000 then (w (u lsr 8); w (u land 0xFF)) else
     let u' = u - 0x10000 in
@@ -786,6 +801,7 @@ module Buffer = struct
     w (lo lsr 8); w (lo land 0xFF)
 
   let add_utf_16le b u =                            (* swapped add_utf_16be. *)
+    let u = Uchar.to_int u in
     let w byte = Buffer.add_char b (unsafe_chr byte) in          (* inlined. *)
     if u < 0x10000 then (w (u land 0xFF); w (u lsr 8)) else
     let u' = u - 0x10000 in

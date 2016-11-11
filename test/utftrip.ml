@@ -146,7 +146,7 @@ let u_surrogate_count = 0xDFFF - 0xD800 + 1
 let uchar_count = (0x10FFFF + 1) - u_surrogate_count
 let r_uchar () =
   let n = Random.int uchar_count in
-  if n > 0xD7FF then n + u_surrogate_count else n
+  Uchar.of_int (if n > 0xD7FF then n + u_surrogate_count else n)
 
 let r_text encoding encode_f rcount =
   encode_f (`Uchar Uutf.u_bom);
@@ -283,8 +283,8 @@ let oenc =
        info ["e"; "output-encoding"] ~doc)
 
 let nln =
-  let nln_enum =
-    ["ascii", `ASCII 0x000A; "nlf", `NLF 0x000A; "readline", `Readline 0x000A]
+  let lf = Uchar.of_int 0x000A in
+  let nln_enum = ["ascii", `ASCII lf; "nlf", `NLF lf; "readline", `Readline lf]
   in
   let doc = str "New line normalization to U+000A, must %s. ascii
                  normalizes CR (U+000D) and CRLF (<U+000D, U+000A>). nlf
@@ -293,7 +293,7 @@ let nln =
                  PS (U+2029)."
       (Arg.doc_alts_enum nln_enum)
   in
-  let vopt = Some (`Readline 0x000A) in
+  let vopt = Some (`Readline lf) in
   Arg.(value & opt ~vopt (some (enum nln_enum)) None & info ["nln"] ~doc)
 
 let sin =
