@@ -29,18 +29,7 @@
     (latest version)}}
 *)
 
-  (** {1:ucharcsts Special Unicode characters}
-
-      [Uutf] uses the term character for a Unicode
-      {{:http://unicode.org/glossary/#unicode_scalar_value} scalar
-      value} which is an integer value in the ranges [0x0000]
-      ... [0xD7FF] and [0xE000] ... [0x10FFFF] as represented by the
-      values of the {!Uchar.t} type. This should not be
-      confused with a Unicode
-      {{:http://unicode.org/glossary/#code_point}code point}, which is
-      a scalar value or a (textually meaningless)
-      {{:http://unicode.org/glossary/#surrogate_code_point}surrogate
-      code point}. *)
+  (** {1:ucharcsts Special Unicode characters} *)
 
 val u_bom : Uchar.t
 (** [u_bom] is the {{:http://unicode.org/glossary/#byte_order_mark}byte
@@ -94,7 +83,7 @@ type nln = [ `ASCII of Uchar.t | `NLF of Uchar.t | `Readline of Uchar.t ]
     Used with an appropriate normalization character the [`NLF] and
     [`Readline] normalizations allow to implement all the different
     recommendations of Unicode's newline guidelines (section 5.8 in
-    Unicode 6.1.0). *)
+    Unicode 9.0.0). *)
 
 type decoder
 (** The type for decoders. *)
@@ -160,17 +149,18 @@ xx xx .. | `UTF_16BE | Not UTF-8 => UTF-16, no BOM => UTF-16BE
     newline normalization is performed, see {!nln}. Otherwise
     all newlines are returned as found in the input.
 
-    {b Character position.} The line number, column number and
-    character count of the last decoded character (including
+    {b Character position.} The line number, column number, byte count
+    and character count of the last decoded character (including
     [`Malformed] ones) are respectively returned by {!decoder_line},
-    {!decoder_col} and {!decoder_count}. Before the first call to
-    {!decode} the line number is [1] and the column is [0].  Each
-    {!decode} returning [`Uchar] or [`Malformed] increments the column
-    until a newline.  On a newline, the line number is incremented and
-    the column set to zero. For example the line is [2] and column [0]
-    after the first newline was decoded. This can be understood as if {!decode}
-    was moving an insertion point to the right in the data.  A {e
-    newline} is anything normalized by [`Readline], see {!nln}.
+    {!decoder_col}, {!decoder_byte_count} and {!decoder_count}. Before
+    the first call to {!decode} the line number is [1] and the column
+    is [0].  Each {!decode} returning [`Uchar] or [`Malformed]
+    increments the column until a newline.  On a newline, the line
+    number is incremented and the column set to zero. For example the
+    line is [2] and column [0] after the first newline was
+    decoded. This can be understood as if {!decode} was moving an
+    insertion point to the right in the data.  A {e newline} is
+    anything normalized by [`Readline], see {!nln}.
 
     [Uutf] assumes that each Unicode scalar value has a column width
     of 1. The same assumption may not be made by the display program
@@ -286,10 +276,6 @@ val encode :
     guaranteed to be the size of the last provided buffer (i.e. nothing
     was written).
 
-    {b Warning.} The function assumes that [u] is a Unicode
-    {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}.
-    If you are handling foreign data you can use {!is_uchar} to assert that.
-
     {b Raises.} [Invalid_argument] if an [`Uchar] or [`End] is encoded
     after a [`Partial] encode. *)
 
@@ -348,57 +334,43 @@ module String : sig
   (** [fold_utf_8 f a s ?pos ?len ()] is
       [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
-      where [u]{_i}, [j]{_i} are the Unicode
-      {{:http://unicode.org/glossary/#unicode_scalar_value} scalar value}
-      and the starting position of the characters in the section of the
-      UTF-8 encoded string [s] starting at [pos] and [len] long. The default
-      value for [pos] is [0] and [len] is [String.length s - pos]. *)
+      where [u]{_i}, [j]{_i} are characters and their start position
+      in the UTF-8 encoded substring [s] starting at [pos] and [len]
+      long. The default value for [pos] is [0] and [len] is
+      [String.length s - pos]. *)
 
   val fold_utf_16be : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16be f a s ?pos ?len ()] is
       [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
-      where [u]{_i}, [j]{_i} are the Unicode
-      {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the section of the
-      UTF-16BE encoded string [s] starting at [pos] and [len] long. The
-      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
+      where [u]{_i}, [j]{_i} are characters and their start position
+      in the UTF-8 encoded substring [s] starting at [pos] and [len]
+      long. The default value for [pos] is [0] and [len] is
+      [String.length s - pos]. *)
 
   val fold_utf_16le : ?pos:int -> ?len:int -> 'a folder -> 'a -> string -> 'a
   (** [fold_utf_16le f a s ?pos ?len ()] is
       [f (] ... [(f (f a pos u]{_0}[) j]{_1}[ u]{_1}[)] ... [)] ... [)
       j]{_n}[ u]{_n}
-      where [u]{_i}, [j]{_i} are the Unicode
-      {{:http://unicode.org/glossary/#unicode_scalar_value}scalar value}
-      and the starting position of the characters in the section of the
-      UTF-16LE encoded string [s] starting at [pos] and [len] long. The
-      default value for [pos] is [0] and [len] is [String.length s - pos]. *)
+      where [u]{_i}, [j]{_i} are characters and their start position
+      in the UTF-8 encoded substring [s] starting at [pos] and [len]
+      long. The default value for [pos] is [0] and [len] is
+      [String.length s - pos]. *)
 end
 
 (**  UTF encode characters in OCaml {!Buffer.t} values. *)
 module Buffer : sig
 
-  (** {1 Buffer encoders}
-
-      {b Warning.} All the functions below assumes that [u] is a
-      {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
-      scalar value}. If you are handling foreign data you
-      can use {!is_uchar} to assert that. *)
+  (** {1 Buffer encoders} *)
 
   val add_utf_8 : Buffer.t -> Uchar.t -> unit
-  (** [add_utf_8 b u] adds the UTF-8 encoding of the
-      {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
-      scalar value} [u] to [b]. *)
+  (** [add_utf_8 b u] adds the UTF-8 encoding of [u] to [b]. *)
 
   val add_utf_16be : Buffer.t -> Uchar.t -> unit
-  (** [add_utf_16be b u] adds the UTF-16BE encoding of the
-      {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
-      scalar value} [u] to [b]. *)
+  (** [add_utf_16be b u] adds the UTF-16BE encoding of [u] to [b]. *)
 
   val add_utf_16le : Buffer.t -> Uchar.t -> unit
-  (** [add_utf_16le b u] adds the UTF-16LE encoding of the
-      {{:http://unicode.org/glossary/#unicode_scalar_value} unicode
-      scalar value} [u] to [b]. *)
+  (** [add_utf_16le b u] adds the UTF-16LE encoding of [u] to [b]. *)
 end
 
 (** {1:examples Examples}
@@ -408,7 +380,7 @@ end
     The value of [lines src] is the list of lines in [src] as UTF-8
     encoded OCaml strings. Line breaks are determined according to the
     recommendation R4 for a [readline] function in section 5.8 of
-    Unicode 6.1.0. If a decoding error occurs we silently replace the
+    Unicode 9.0.0. If a decoding error occurs we silently replace the
     malformed sequence by the replacement character {!u_rep} and continue.
 {[let lines ?encoding (src : [`Channel of in_channel | `String of string]) =
   let rec loop d buf acc = match Uutf.decode d with
