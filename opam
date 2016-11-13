@@ -8,16 +8,12 @@ bug-reports: "https://github.com/dbuenzli/uutf/issues"
 tags: [ "unicode" "text" "utf-8" "utf-16" "codec" "org:erratique" ]
 license: "ISC"
 available: [ ocaml-version >= "4.01.0"]
-
 depends: [
   "ocamlfind" {build}
-  "ocamlbuild" {build} ]
-
-depopts: ["cmdliner"
-          "cmdliner" {test} ]
-
+  "ocamlbuild" {build}
+  "uchar" ]
+depopts: ["cmdliner"]
 conflicts: ["cmdliner" { < "0.9.6"} ]
-
 build: [[
   "ocaml" "pkg/pkg.ml" "build"
           "--pinned" "%{pinned}%"
