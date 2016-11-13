@@ -11,7 +11,8 @@ available: [ ocaml-version >= "4.01.0"]
 depends: [
   "ocamlfind" {build}
   "ocamlbuild" {build}
-  "uchar" ]
+  "uchar"
+]
 depopts: ["cmdliner"]
 conflicts: ["cmdliner" { < "0.9.6"} ]
 build: [[
