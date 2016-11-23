@@ -1,4 +1,9 @@
+v1.0.0 2016-11-23 Zagreb
+------------------------
 
+- `Uutf.String.fold_utf_{8,16be,16le}`, allow substring folding via
+  optional arguments. Thanks to Raphaël Proust for the idea and the
+  patch.
 - OCaml standard library `Uchar.t` support.
   - Removes and substitutes `type Uutf.uchar = int` by the (abstract)
     `Uchar.t` type. `Uchar.{of,to}_int` allows to recover the previous
