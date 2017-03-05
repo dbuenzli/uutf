@@ -276,7 +276,7 @@ let utf8_encode_test umap =
     let bytes = Bytes.unsafe_to_string bytes in
     Buffer.clear buf; Uutf.Buffer.add_utf_8 buf u;
     if bytes = Buffer.contents buf then () else
-    fail "UTF-8 encoding error (%a)" Uchar.dump u
+    fail "UTF-8 encoding error (U+%04X)" (Uchar.to_int u)
   in
   for i = 0x0000 to 0xD7FF do test i done;
   for i = 0xE000 to 0x10FFFF do test i done

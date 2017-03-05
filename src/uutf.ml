@@ -161,7 +161,7 @@ type nln = [ `ASCII of Uchar.t | `NLF of Uchar.t | `Readline of Uchar.t ]
 type decode = [ `Await | `End | `Malformed of string | `Uchar of Uchar.t]
 
 let pp_decode ppf = function
-| `Uchar u -> pp ppf "@[`Uchar %a@]" Uchar.dump u
+| `Uchar u -> pp ppf "@[`Uchar U+%04X@]" (Uchar.to_int u)
 | `End -> pp ppf "`End"
 | `Await -> pp ppf "`Await"
 | `Malformed bs ->
