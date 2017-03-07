@@ -1,4 +1,4 @@
-version = "%%VERSION%%"
+version = "%%VERSION_NUM%%"
 description = "Non-blocking streaming Unicode codec for OCaml"
 requires = "bytes uchar"
 archive(byte) = "uutf.cma"
