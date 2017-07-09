@@ -356,6 +356,95 @@ module String : sig
       in the UTF-8 encoded substring [s] starting at [pos] and [len]
       long. The default value for [pos] is [0] and [len] is
       [String.length s - pos]. *)
+
+  (** {1 UTF-8 support} *)
+
+  (** UTF-8 encoded strings.
+
+      The [UTF_8] module provides a {{!t}datatype} that asserts
+      that a string value is valid UTF-8 and a few functions
+      that operate under this assumption. *)
+  module UTF_8 : sig
+
+    (** {1 UTF-8 encoded strings} *)
+
+    type t = private string
+    (** The type for valid UTF-8 strings. *)
+
+    val is_valid : string -> bool
+    (** [is_valid s] is [true] iff the string [s] is valid UTF-8. *)
+
+    val of_string : string -> (t, t) result
+    (** [of_string s] is [Ok s] if [s] is valid UTF-8 and [Error b] if
+        [s] is not. In this case [b] is the result of a best-effort
+        decode in which any UTF-8 decoding error is replaced by at
+        least one replacement character {!Uchar.u_rep}. *)
+
+    val v : string -> t
+    (** [v s] is like [of_string s] but raises [Invalid_argument] if [s] is
+        not valid UTF-8. *)
+
+    (**/**)
+    val unsafe_of_string : string -> t
+    (**/**)
+
+    val to_string : t -> string
+    (** [to_string s] is [s] as a string. *)
+
+    (** {1:decindices Decode indices}
+
+      In a string [s] a {e decode index} [i] is a valid string index
+      where an Unicode character can be decoded. In a valid UTF-8
+      encoded string the index [0] is always a valid decode index.  *)
+
+    val next_index : t -> int -> int
+    (** [next s i] is the smallest decode index after the string
+        byte position [i] or the string length if there is no such index.
+
+        @raise Invalid_argument if [i] is not a valid string position. *)
+
+    val prev_index : t -> int -> int
+    (** [prev_index s i] is the smallest decode index before the string
+        byte position [i] or [0] if there is no such index.
+
+        @raise Invalid_argument if [i] is not a valid string position. *)
+
+    val fold_indices : ('a -> int -> 'a) -> 'a -> t -> 'a
+    (** [fold_indices f acc s] folds over the decode indices of [s]. *)
+
+    (** {1:uchars Unicode characters} *)
+
+    val get_uchar : t -> int -> Uchar.t
+    (** [get_uchar t i] is the Unicode character at the
+        {{!decindices}decode index} [i].
+
+        @raise Invalid_argument if [i] is not a decode index of [s] *)
+
+    val fold_uchars : ('a -> int -> Uchar.t -> 'a) -> 'a -> t -> 'a
+    (** [fold_uchars f acc s] folds over the Unicode characters of [s].
+        The decode index is passed with the character to [f]. *)
+
+    (** {1:ops Operations} *)
+
+    val append : t -> t -> t
+    (** [append s s'] appends [s'] to [s]. *)
+
+    val concat : t ->  t list -> t
+    (** [concat sep ss]  concatenates the list of strings [ss] separating
+        each consecutive elements in the list with [sep].
+
+        @raise Invalid_argument if the result is longer than
+        {!Sys.max_string_length}. *)
+
+    (** {1:comparisons Comparisons} *)
+
+    val equal : t -> t -> bool
+    (** [equal s s'] is [true] iff [s] and [s'] are bytewise equal. *)
+
+    val compare : t -> t -> int
+    (** [compare s s'] totally order [s] and [s'] according to their
+        byte representation. *)
+  end
 end
 
 (**  UTF encode characters in OCaml {!Buffer.t} values. *)

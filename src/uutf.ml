@@ -769,6 +769,212 @@ module String = struct
     | Some l -> l
     in
     loop acc f (Bytes.unsafe_of_string s) pos len
+
+
+module UTF_8 = struct
+
+  (* Invalid arguments *)
+
+  let invalid kind i l =
+    let err_msg =
+      ["invalid "; kind; string_of_int i; " not in range [0;";
+       string_of_int l; "]" ]
+    in
+    invalid_arg (String.concat "" err_msg)
+
+  let invalid_pos i ~len = invalid "position: " i len
+  let invalid_index i ~len = invalid "index: " i (len - 1)
+  let invalid_decode_index i =
+    invalid_arg ("invalid decode index: " ^ string_of_int i)
+
+  (* UTF-8 encoded strings *)
+
+  type t = string
+
+(* Uncomment if upstreamed
+  let utf_8_len = [| (* uchar byte length according to first UTF-8 byte. *)
+    1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
+    1; 1; 1; 1; 1; 1; 1; 1; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;
+    0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;
+    0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0;
+    0; 0; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2; 2;
+    2; 2; 2; 2; 2; 2; 2; 2; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3; 3;
+    4; 4; 4; 4; 4; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0 |]
+*)
+
+  let utf_8_len b = utf_8_len.(b) [@@ ocaml.inline]
+  let is_uchar_start byte = (byte land 0xC0 : int) <> 0x80 [@@ ocaml.inline]
+  let unsafe_byte s i = Char.code (String.unsafe_get s i) [@@ ocaml.inline]
+
+  exception Invalid of int * int (* index range, only used internally *)
+  let invalid s e = raise_notrace (Invalid (s, e)) [@@ ocaml.inline]
+
+  let rec validate s i =
+    let max = String.length s - 1 in
+    let rec loop i =
+      if i > max then () else
+      let b0 = unsafe_byte s i in
+      match utf_8_len b0 with
+      | 0 -> invalid i i
+      | 1 -> loop (i + 1)
+      | 2 ->
+          let k = i + 1 in
+          if k > max then invalid i max else
+          let b1 = unsafe_byte s k in
+          if b1 lsr 6 != 0b10 then invalid i k else
+          loop (i + 2)
+      | 3 ->
+          let k = i + 2 in
+          if k > max then invalid i max else
+          let b1 = unsafe_byte s (i + 1) in
+          let b2 = unsafe_byte s k in
+          begin match b0 with
+          | 0xE0 when b1 < 0xA0 || 0xBF < b1 -> invalid i k
+          | 0xED when b1 < 0x80 || 0x9F < b1 -> invalid i k
+          | _    when b1 lsr 6 != 0b10 -> invalid i k
+          | _ -> ()
+          end;
+          if b2 lsr 6 != 0b10 then invalid i k else
+          loop (i + 3)
+      | 4 ->
+          let k = i + 3 in
+          if k > max then invalid i max else
+          let b1 = unsafe_byte s (i + 1) in
+          let b2 = unsafe_byte s (i + 2) in
+          let b3 = unsafe_byte s k in
+          begin match b0 with
+          | 0xF0 when b1 < 0x90 || 0xBF < b1 -> invalid i k
+          | 0xF4 when b1 < 0x80 || 0x8F < b1 -> invalid i k
+          | _    when b1 lsr 6 != 0b10 -> invalid i k
+          | _ -> ()
+          end;
+          if b2 lsr 6 != 0b10 || b3 lsr 6 != 0b10 then invalid i k else
+          loop (i + 4)
+      | _ -> assert false
+    in
+    loop i
+
+  let is_valid s = try validate s 0; true with Invalid (_, _) -> false
+
+  let u_rep_utf_8 = "\xEF\xBF\xBD" (* \u{FFFD} *)
+
+  let of_string s = try validate s 0; Ok s with
+  | Invalid (si, ei) ->
+      let len = String.length s in
+      let b = Buffer.create (len + 5 * 3) in
+      let max = len - 1 in
+      let rec loop last si ei =
+        Buffer.add_substring b s last (si - last);
+        Buffer.add_string b u_rep_utf_8;
+        let last = ei + 1 in
+        match last > max with
+        | true -> Error (Buffer.contents b)
+        | false ->
+            try
+              validate s last;
+              Buffer.add_substring b s last (len - last);
+              Error (Buffer.contents b)
+            with
+            | Invalid (si, ei) -> loop last si ei
+      in
+      loop 0 si ei
+
+  let v s = try validate s 0; s with
+  | Invalid (s, _) ->
+      invalid_arg ("invalid UTF-8 starting at index " ^ string_of_int s)
+
+  external unsafe_of_string : string -> t = "%identity"
+  external to_string : t -> string = "%identity"
+
+  (* Decode indices
+
+     N.B. these functions assume they operate on valid UTF-8. *)
+
+  let next_index s i =
+    let s = to_string s in
+    let len = String.length s in
+    if i < 0 || i > len then invalid_pos i ~len else
+    let rec loop i =
+      if i >= len then len else
+      if is_uchar_start (unsafe_byte s i) then i else loop (i + 1)
+    in
+    loop (i + 1)
+
+  let prev_index s i =
+    let s = to_string s in
+    let len = String.length s in
+    if i < 0 || i > len then invalid_pos i ~len else
+    let rec loop i =
+      if i < 0 then 0 else
+      if is_uchar_start (unsafe_byte s i) then i else loop (i - 1)
+    in
+    loop (i - 1)
+
+  let fold_indices f acc s =
+    let s = to_string s in
+    let max = String.length s - 1 in
+    let rec loop acc i =
+      if i > max then acc else
+      if is_uchar_start (unsafe_byte s i) then loop (f acc i) (i + 1) else
+      loop acc (i + 1)
+    in
+    loop acc 0
+
+  (* Unicode character access
+
+     N.B. these functions assume they operate on valid UTF-8. *)
+
+  let dec_uchar s i b0 = function
+  | 0 -> invalid_decode_index i
+  | 1 -> Uchar.unsafe_of_int (unsafe_byte s i)
+  | 2 ->
+      let b1 = unsafe_byte s (i + 1) in
+      Uchar.unsafe_of_int (((b0 land 0x1F) lsl 6) lor (b1 land 0x3F))
+  | 3 ->
+      let b1 = unsafe_byte s (i + 1) in
+      let b2 = unsafe_byte s (i + 2) in
+      Uchar.unsafe_of_int
+        (((b0 land 0x0F) lsl 12) lor
+         ((b1 land 0x3F) lsl 6) lor
+         (b2 land 0x3F))
+  | 4 ->
+      let b1 = unsafe_byte s (i + 1) in
+      let b2 = unsafe_byte s (i + 2) in
+      let b3 = unsafe_byte s (i + 3) in
+      Uchar.unsafe_of_int
+        ((((b0 land 0x07) lsl 18) lor
+          ((b1 land 0x3F) lsl 12) lor
+          ((b2 land 0x3F) lsl 6) lor
+          (b3 land 0x3F)))
+  | _ -> assert false
+
+  let get_uchar s i =
+    let l = String.length s in
+    if i < 0 || i > l - 1 then invalid_index i ~len:l else
+    let b0 = unsafe_byte s i in
+    let len = utf_8_len b0 in
+    dec_uchar s i (unsafe_byte s i) len
+
+  let fold_uchars f acc s =
+    let max = String.length s - 1 in
+    let rec loop acc i =
+      if i > max then acc else
+      let b0 = unsafe_byte s i in
+      let len = utf_8_len b0 in
+      let u = dec_uchar s i (unsafe_byte s i) len in
+      loop (f acc i u) (i + len)
+    in
+    loop acc 0
+
+  let append = ( ^ )
+  let concat = String.concat
+  let equal = String.equal
+  let compare = String.compare
+end
 end
 
 module Buffer = struct
