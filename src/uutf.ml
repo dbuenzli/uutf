@@ -722,53 +722,48 @@ module String = struct
     'a -> int -> [ `Uchar of Uchar.t | `Malformed of string ] -> 'a
 
   let fold_utf_8 ?(pos = 0) ?len f acc s =
-    let rec loop acc f s i l =
-      if i = l then acc else
+    let rec loop acc f s i last =
+      if i > last then acc else
       let need = unsafe_array_get utf_8_len (unsafe_byte s i) in
-      if need = 0 then loop (f acc i (malformed s i 1)) f s (i + 1) l else
-      let rem = l - i in
+      if need = 0 then loop (f acc i (malformed s i 1)) f s (i + 1) last else
+      let rem = last - i + 1 in
       if rem < need then f acc i (malformed s i rem) else
-      loop (f acc i (r_utf_8 s i need)) f s (i + need) l
+      loop (f acc i (r_utf_8 s i need)) f s (i + need) last
     in
-    let len = match len with
-    | None -> String.length s - pos
-    | Some l -> l
-    in
-    loop acc f (Bytes.unsafe_of_string s) pos len
+    let len = match len with None -> String.length s - pos | Some l -> l in
+    let last = pos + len - 1 in
+    loop acc f (Bytes.unsafe_of_string s) pos last
 
   let fold_utf_16be ?(pos = 0) ?len f acc s =
-    let rec loop acc f s i l =
-      if i = l then acc else
-      let rem = l - i in
+    let rec loop acc f s i last =
+      if i > last then acc else
+      let rem = last - i + 1 in
       if rem < 2 then f acc i (malformed s i 1) else
       match r_utf_16 s i (i + 1) with
-      | `Uchar _ | `Malformed _ as v -> loop (f acc i v) f s (i + 2) l
+      | `Uchar _ | `Malformed _ as v -> loop (f acc i v) f s (i + 2) last
       | `Hi hi ->
           if rem < 4 then f acc i (malformed s i rem)  else
-          loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) l
+          loop (f acc i (r_utf_16_lo hi s (i + 2) (i + 3))) f s (i + 4) last
     in
-    let len = match len with
-    | None -> String.length s - pos
-    | Some l -> l
-    in
-    loop acc f (Bytes.unsafe_of_string s) pos len
+    let len = match len with None -> String.length s - pos | Some l -> l in
+    let last = pos + len - 1 in
+    loop acc f (Bytes.unsafe_of_string s) pos last
 
-  let fold_utf_16le ?(pos = 0) ?len f acc s = (* [fold_utf_16be], bytes swapped. *)
-    let rec loop acc f s i l =
-      if i = l then acc else
-      let rem = l - i in
+  let fold_utf_16le ?(pos = 0) ?len f acc s =
+    (* [fold_utf_16be], bytes swapped. *)
+    let rec loop acc f s i last =
+      if i > last then acc else
+      let rem = last - i + 1 in
       if rem < 2 then f acc i (malformed s i 1) else
       match r_utf_16 s (i + 1) i with
-      | `Uchar _ | `Malformed _ as v -> loop (f acc i v) f s (i + 2) l
+      | `Uchar _ | `Malformed _ as v -> loop (f acc i v) f s (i + 2) last
       | `Hi hi ->
           if rem < 4 then f acc i (malformed s i rem)  else
-          loop (f acc i (r_utf_16_lo hi s (i + 3) (i + 2))) f s (i + 4) l
+          loop (f acc i (r_utf_16_lo hi s (i + 3) (i + 2))) f s (i + 4) last
     in
-    let len = match len with
-    | None -> String.length s - pos
-    | Some l -> l
-    in
-    loop acc f (Bytes.unsafe_of_string s) pos len
+    let len = match len with None -> String.length s - pos | Some l -> l in
+    let last = pos + len - 1 in
+    loop acc f (Bytes.unsafe_of_string s) pos last
 end
 
 module Buffer = struct

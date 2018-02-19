@@ -1,3 +1,7 @@
+
+- Fix the substring folding functionality introduced in v1.0.0.
+  It never worked correctly.
+
 v1.0.1 2016-03-07 La Forclaz (VS)
 ---------------------------------
 

@@ -208,6 +208,22 @@ let guess_test () =
         [`Uchar u_nl; `Uchar u_nl]);
   ()
 
+let test_sub () =
+  log "Test Uutf.String.fold_utf_8 substring";
+  let trip fold ~pos ~len s =
+    let b = Buffer.create 100 in
+    let add _ _ = function
+    | `Uchar u -> Uutf.Buffer.add_utf_8 b u
+    | `Malformed _ -> assert false
+    in
+    fold ?pos:(Some pos) ?len:(Some len) add () s;
+    assert (String.sub s pos len = Buffer.contents b);
+  in
+  trip Uutf.String.fold_utf_8 ~pos:4 ~len:4 "hop hap mop";
+  trip Uutf.String.fold_utf_8 ~pos:0 ~len:1 "hop hap mop";
+  trip Uutf.String.fold_utf_8 ~pos:2 ~len:1 "hop";
+  ()
+
 module Int = struct type t = int let compare : int -> int -> int = compare end
 module Umap = Map.Make (Uchar)
 module Bmap = Map.Make (Bytes)
@@ -353,6 +369,7 @@ let test () =
   buffer_string_codec_test ();
   pos_test ();
   guess_test ();
+  test_sub ();
   utf8_test ();
   is_uchar_test ();
   log "All tests succeeded.\n"
