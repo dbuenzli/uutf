@@ -8,15 +8,14 @@ bug-reports: "https://github.com/dbuenzli/uutf/issues"
 tags: [ "unicode" "text" "utf-8" "utf-16" "codec" "org:erratique" ]
 license: "ISC"
 depends: [
-  "ocaml" {>= "4.01.0"}
+  "ocaml" {>= "4.03.0"}
   "ocamlfind" {build}
   "ocamlbuild" {build}
   "topkg" {build}
-  "uchar"
 ]
 depopts: ["cmdliner"]
 conflicts: ["cmdliner" { < "0.9.6"} ]
 build: [[
   "ocaml" "pkg/pkg.ml" "build"
-          "--pinned" "%{pinned}%"
+          "--dev-pkg" "%{dev}%"
           "--with-cmdliner" "%{cmdliner:installed}%" ]]
