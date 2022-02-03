@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2012 The uutf programmers. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 let u_nl = Uchar.of_int 0x000A

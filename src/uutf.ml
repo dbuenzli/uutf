@@ -1,7 +1,6 @@
 (*---------------------------------------------------------------------------
    Copyright (c) 2012 The uutf programmers. All rights reserved.
    Distributed under the ISC license, see terms at the end of the file.
-   %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
 let io_buffer_size = 65536                           (* IO_BUFFER_SIZE 4.0.0 *)
