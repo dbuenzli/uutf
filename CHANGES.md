@@ -1,3 +1,9 @@
+
+
+- Support for OCaml 5.00, thanks to Kate (@ki-ti-kate) for
+  the patch.
+
+
 v1.0.2 2019-02-05 La Forclaz (VS)
 ---------------------------------
 
