@@ -10,7 +10,7 @@ character position tracking and support newline normalization.
 Functions are also provided to fold over the characters of UTF encoded
 OCaml string values and to directly encode characters in OCaml
 Buffer.t values. **Note** that since OCaml 4.14, that functionality
-can be found in the Stdlib and you are encouraged to migrate to.
+can be found in the Stdlib and you are encouraged to migrate to it.
 
 Uutf has no dependency and is distributed under the ISC license.
 
