@@ -382,12 +382,12 @@ let cmd =
         See http://erratique.ch/software/uutf for contact
         information."; ]
   in
-  Term.(pure do_cmd $ cmd $ file $ sin $ sout $ use_unix $ usize $
-        ienc $ oenc $ nln $ rseed $ rcount),
-  Term.info "utftrip" ~version:"%%VERSION%%" ~doc ~man
+  Cmd.v (Cmd.info "utftrip" ~version:"%%VERSION%%" ~doc ~man)
+    Term.(const do_cmd $ cmd $ file $ sin $ sout $ use_unix $ usize $
+          ienc $ oenc $ nln $ rseed $ rcount)
 
-let () = match Term.eval cmd with
-| `Error _ -> exit 1
+let () = match Cmd.eval_value cmd with
+| Error _ -> exit 1
 | _ -> if !input_malformed then exit 2 else exit 0
 
 (*---------------------------------------------------------------------------

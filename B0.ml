@@ -47,7 +47,7 @@ let default =
       ["unicode"; "text"; "utf-8"; "utf-16"; "codec"; "org:erratique"]
     |> add B0_opam.Meta.depopts ["cmdliner", ""]
     |> add B0_opam.Meta.conflicts
-      [ "cmdliner", {|< "0.9.8"|}]
+      [ "cmdliner", {|< "1.1.0"|}]
     |> add B0_opam.Meta.depends
       [ "ocaml", {|>= "4.03.0"|};
         "ocamlfind", {|build|};

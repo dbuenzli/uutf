@@ -1,3 +1,7 @@
+
+
+- Handle cmdliner 1.1.0 deprecations.
+
 v1.0.3 2022-02-03
 -----------------
 
