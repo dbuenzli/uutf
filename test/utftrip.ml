@@ -315,10 +315,10 @@ let nat =
   let parse s =
     try
       let v = int_of_string s in
-      if v > 0 then `Ok v else failwith (str "%s must be > 0" s)
-    with Failure e -> `Error e
+      if v > 0 then Ok v else failwith (str "%s must be > 0" s)
+    with Failure e -> Error e
   in
-  parse, Format.pp_print_int
+  Arg.conv' ~docv:"NAT" (parse, Format.pp_print_int)
 
 let rseed =
   let doc = "Random seed." in
