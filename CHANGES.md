@@ -1,6 +1,8 @@
 
+- Implement `Uutf.Buffer.*` with `Stdlib.Buffer.*`, no need to bloat
+  these executable with dozens of different UTF encoders.
 - Require OCaml >= 4.08.
-- `uuidtrip` handle `cmdliner` deprecations.
+- `uuidtrip`, handle `cmdliner` deprecations.
 
 v1.0.3 2022-02-03
 -----------------
