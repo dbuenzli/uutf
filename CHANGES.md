@@ -1,5 +1,6 @@
 
-- `uuidtrip` support for `cmdliner` 2.0 and handle 1.1.0 deprecations.
+- Require OCaml >= 4.08.
+- `uuidtrip` handle `cmdliner` deprecations.
 
 v1.0.3 2022-02-03
 -----------------

@@ -4,11 +4,9 @@
 open Topkg
 
 let cmdliner = Conf.with_pkg "cmdliner"
-
 let () =
   Pkg.describe "uutf" @@ fun c ->
   let cmdliner = Conf.value c cmdliner in
   Ok [ Pkg.mllib "src/uutf.mllib";
        Pkg.bin ~cond:cmdliner "test/utftrip";
-       Pkg.test "test/examples";
-       Pkg.test "test/test"; ]
+       Pkg.doc "doc/index.mld" ~dst:"odoc-pages/index.mld" ]
